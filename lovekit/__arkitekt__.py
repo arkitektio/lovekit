@@ -1,14 +1,14 @@
 from arkitekt_next.model import Manifest
 from koil.composition.base import KoiledModel
+from herre import Herre
+from fakts import Fakts
+
+from arkitekt_next.service_registry import Params
+from arkitekt_next.model import Requirement
 
 
 def init_services(service_builder_registry):
-    from herre import Herre
-    from fakts import Fakts
-
-    from arkitekt_next.service_registry import Params
-    from arkitekt_next.model import Requirement
-
+   
     class ArkitektNextLovekit(KoiledModel):
         async def __aenter__(self):
             return self

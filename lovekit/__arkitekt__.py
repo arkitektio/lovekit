@@ -1,7 +1,7 @@
 from arkitekt_next.base_models import Manifest
 from koil.composition.base import KoiledModel
-from herre import Herre
-from fakts import Fakts
+from herre_next import Herre
+from fakts_next import Fakts
 
 from arkitekt_next.service_registry import Params
 from arkitekt_next.base_models import Requirement

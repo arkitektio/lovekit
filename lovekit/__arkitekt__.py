@@ -3,30 +3,36 @@ from koil.composition.base import KoiledModel
 from herre_next import Herre
 from fakts_next import Fakts
 
-from arkitekt_next.service_registry import Params
+from arkitekt_next.service_registry import BaseArkitektService, Params
 from arkitekt_next.base_models import Requirement
 
 
-def init_services(service_builder_registry):
 
-    class ArkitektNextLovekit(KoiledModel):
-        async def __aenter__(self):
-            return self
 
-        async def __aexit__(self, exc_type, exc_value, traceback):
-            pass
 
-    def build_arkitekt_lovekit(
-        fakts: Fakts, herre: Herre, params: Params, manifest: Manifest
-    ):
-        return ArkitektNextLovekit()
+class LovekitService(BaseArkitektService):
 
-    service_builder_registry.register(
-        "livekit",
-        build_arkitekt_lovekit,
-        Requirement(
-            key="livekit",
-            service="io.livekit.livekit",
-            description="An instance of ArkitektNext Lok to authenticate the user",
-        ),
-    )
+
+    def get_service_name(self):
+        return "lovekit"
+
+    def build_service(self, fakts: Fakts, herre: Herre, params: Params, manifest: Manifest):
+        return None
+
+    def get_requirements(self):
+        return [
+            Requirement(
+                key="livekit",
+                service="io.livekit.livekit",
+                description="An instance of ArkitektNext Lok to authenticate the user",
+            )
+        ]
+
+    def get_graphql_schema(self):
+        return ModuleNotFoundError
+
+
+
+
+def build_services():
+    return [LovekitService()]

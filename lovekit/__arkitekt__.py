@@ -7,16 +7,14 @@ from arkitekt_next.service_registry import BaseArkitektService, Params
 from arkitekt_next.base_models import Requirement
 
 
-
-
-
 class LovekitService(BaseArkitektService):
-
 
     def get_service_name(self):
         return "lovekit"
 
-    def build_service(self, fakts: Fakts, herre: Herre, params: Params, manifest: Manifest):
+    def build_service(
+        self, fakts: Fakts, herre: Herre, params: Params, manifest: Manifest
+    ):
         return None
 
     def get_requirements(self):
@@ -30,8 +28,6 @@ class LovekitService(BaseArkitektService):
 
     def get_graphql_schema(self):
         return ModuleNotFoundError
-
-
 
 
 def build_services():

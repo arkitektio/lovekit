@@ -3,7 +3,7 @@ from koil.composition.base import KoiledModel
 from herre_next import Herre
 from fakts_next import Fakts
 
-from arkitekt_next.service_registry import BaseArkitektService, Params
+from arkitekt_next.service_registry import BaseArkitektService, Params, get_default_service_registry
 from arkitekt_next.base_models import Requirement
 
 
@@ -30,5 +30,4 @@ class LovekitService(BaseArkitektService):
         return ModuleNotFoundError
 
 
-def build_services():
-    return [LovekitService()]
+get_default_service_registry().register(LovekitService())

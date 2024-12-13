@@ -1,3 +1,5 @@
-from lovekit.acquisition import Acquisition
-from lovekit.engine import AcquisitionEngine
-from lovekit.events import *
+
+try:
+    from .arkitekt import LovekitService
+except ImportError:
+    pass

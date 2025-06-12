@@ -1,0 +1,136 @@
+{
+    "schema_url": "http://localhost/lovekit/graphql",
+    "documents": "graphql/lovekit/*/**.graphql",
+    "extensions": {
+        "turms": {
+            "pydantic_version": "v2",
+            "domain": null,
+            "out_dir": "lovekit/api",
+            "dump_configuration": true,
+            "configuration_name": "project.json",
+            "dump_schema": true,
+            "schema_name": "schema.graphql",
+            "generated_name": "schema.py",
+            "documents": "graphql/lovekit/*/**.graphql",
+            "verbose": false,
+            "exit_on_error": true,
+            "allow_introspection": true,
+            "object_bases": [
+                "pydantic.BaseModel"
+            ],
+            "interface_bases": null,
+            "always_resolve_interfaces": true,
+            "exclude_typenames": true,
+            "scalar_definitions": {
+                "uuid": "str",
+                "Callback": "str",
+                "Any": "typing.Any",
+                "JSON": "typing.Any",
+                "ID": "rath.scalars.ID"
+            },
+            "freeze": {
+                "enabled": true,
+                "types": [
+                    "input",
+                    "fragment",
+                    "object"
+                ],
+                "exclude": null,
+                "include": null,
+                "exclude_fields": [],
+                "include_fields": [],
+                "convert_list_to_tuple": true
+            },
+            "create_catchall": true,
+            "options": {
+                "enabled": true,
+                "extra": "forbid",
+                "allow_mutation": null,
+                "allow_population_by_field_name": true,
+                "orm_mode": null,
+                "use_enum_values": true,
+                "validate_assignment": null,
+                "types": [
+                    "input"
+                ],
+                "exclude": null,
+                "include": null
+            },
+            "skip_forwards": false,
+            "additional_bases": {},
+            "additional_config": {},
+            "force_plugin_order": true,
+            "parsers": [],
+            "plugins": [
+                {
+                    "type": "turms.plugins.enums.EnumsPlugin"
+                },
+                {
+                    "type": "turms.plugins.inputs.InputsPlugin"
+                },
+                {
+                    "type": "turms.plugins.fragments.FragmentsPlugin"
+                },
+                {
+                    "type": "turms.plugins.operations.OperationsPlugin"
+                },
+                {
+                    "type": "turms.plugins.funcs.FuncsPlugin",
+                    "expand_input_types": [
+                        "input"
+                    ],
+                    "global_kwargs": [
+                        {
+                            "type": "lovekit.rath.LovekitRath",
+                            "key": "rath",
+                            "description": "The client we want to use (defaults to the currently active client)"
+                        }
+                    ],
+                    "definitions": [
+                        {
+                            "type": "subscription",
+                            "is_async": true,
+                            "use": "lovekit.funcs.asubscribe"
+                        },
+                        {
+                            "type": "query",
+                            "is_async": true,
+                            "use": "lovekit.funcs.aexecute"
+                        },
+                        {
+                            "type": "mutation",
+                            "is_async": true,
+                            "use": "lovekit.funcs.aexecute"
+                        },
+                        {
+                            "type": "subscription",
+                            "use": "lovekit.funcs.subscribe"
+                        },
+                        {
+                            "type": "query",
+                            "use": "lovekit.funcs.execute"
+                        },
+                        {
+                            "type": "mutation",
+                            "use": "lovekit.funcs.execute"
+                        }
+                    ]
+                }
+            ],
+            "processors": [
+                {
+                    "type": "turms.processors.black.BlackProcessor"
+                }
+            ],
+            "stylers": [
+                {
+                    "type": "turms.stylers.default.DefaultStyler"
+                },
+                {
+                    "type": "turms.stylers.appender.AppenderStyler",
+                    "append_fragment": ""
+                }
+            ]
+        }
+    }
+}

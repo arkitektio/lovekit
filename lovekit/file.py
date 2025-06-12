@@ -6,13 +6,13 @@ import janus
 import cv2
 
 
-async def stream_videofile(
+async def astream_videofile(
     room: rtc.Room,
     width: int = 1000,
     height: int = 1000,
     video_path: str = "earth.mp4",
     frame_rate: int = 30,
-    auto_restream: bool = False,
+    auto_restream: bool = True,
 ):
     # get token and connect to room - not included
     # publish a track
@@ -20,10 +20,10 @@ async def stream_videofile(
     track = rtc.LocalVideoTrack.create_video_track("hue", source)
     options = rtc.TrackPublishOptions()
     options.source = rtc.TrackSource.SOURCE_CAMERA
-    publication = await room.local_participant.publish_track(track, options)
+    _ = await room.local_participant.publish_track(track, options)
     video_path = "earth.mp4"
     event = threading.Event()
-    queue = janus.Queue()
+    queue: janus.Queue[rtc.VideoFrame | None] = janus.Queue()
     threading.Thread(
         target=display_video,
         args=(queue.sync_q, video_path, event, width, height, frame_rate),
@@ -62,7 +62,7 @@ async def stream_videofile(
 
 
 def display_video(
-    squeue,
+    squeue: janus.SyncQueue[rtc.VideoFrame | None],
     video_path: str,
     event: threading.Event,
     width: int,

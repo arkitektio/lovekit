@@ -1,5 +1,5 @@
-
 try:
     from .arkitekt import LovekitService
-except ImportError:
-    pass
+    from .rekuest import *
+except ImportError as e:
+    raise e

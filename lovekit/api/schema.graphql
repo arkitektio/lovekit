@@ -1,0 +1,55 @@
+type Query {
+  """Get a stream"""
+  streams(filters: StreamFilter, pagination: OffsetPaginationInput): [Stream!]!
+
+  """Get a stream by ID"""
+  stream(id: ID!): Stream!
+}
+
+type Stream {
+  id: ID!
+  agent: Agent!
+  title: String!
+  token: String!
+}
+
+type Agent {
+  id: ID!
+}
+
+"""Filter for Streams"""
+input StreamFilter {
+  ids: [ID!] = null
+  search: String = null
+  AND: StreamFilter
+  OR: StreamFilter
+  NOT: StreamFilter
+  DISTINCT: Boolean
+}
+
+input OffsetPaginationInput {
+  offset: Int! = 0
+  limit: Int
+}
+
+type Mutation {
+  """Create a stream"""
+  createVideoStream(input: CreateStreamInput!): Stream!
+}
+
+input CreateStreamInput {
+  instanceId: String = null
+  title: String = null
+}
+
+type Subscription {
+  """Subscribe to stream events"""
+  streams(dataset: ID = null): StreamEvent!
+}
+
+type StreamEvent {
+  create: Stream
+  delete: ID
+  update: Stream
+  moved: Stream
+}

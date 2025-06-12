@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lovekit"
-version = "0.1.18"
+version = "0.2.0"
 description = ""
 authors = ["jhnnsrs <jhnnsrs@gmail.com>"]
 readme = "README.md"

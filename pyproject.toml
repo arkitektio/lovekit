@@ -1,24 +1,41 @@
-[tool.poetry]
+[project]
 name = "lovekit"
 version = "0.2.0"
 description = ""
-authors = ["jhnnsrs <jhnnsrs@gmail.com>"]
+authors = [{ name = "jhnnsrs", email = "jhnnsrs@gmail.com" }]
+requires-python = ">=3.11"
 readme = "README.md"
-packages = [{ include = "lovekit" }]
-
-[tool.poetry.dependencies]
-python = "^3.10"
-aiohttp = "^3.9.5"
-koil = ">=1.0.0"
-livekit = "^0.16.3"
+dependencies = [
+    "aiohttp>=3.9.5,<4",
+    "livekit>=0.16.3",
+    "rath>=3.5",
+]
 
 
-[tool.poetry.group.dev.dependencies]
-pytest-aiohttp = "^1.0.5"
-pytest-cov = "^5.0.0"
+[tool.uv]
+dev-dependencies =  [
+    "pytest-asyncio>=0.26.0",
+    "pytest-cov>=6.1.1",
+    "pytest>=8.3.5",
+    "python-semantic-release>=9.21.0",
+    "testcontainers==3.7.0",
+    "autoflake>=1.7.7,<2",
+    "aiohttp>=3.8.3,<4",
+    "black>=23.1.0,<24",
+    "pytest-aiohttp>=1.0.4,<2",
+    "ruff>0.11",
+    "qtpy>=2.4.3",
+]
 
-[tool.poetry.scripts]
-akuire = "akuire.__main__:main"
+[tool.hatch.build.targets.sdist]
+include = ["lovekit"]
+
+[tool.hatch.build.targets.wheel]
+include = ["lovekit"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 markers = [
@@ -26,6 +43,10 @@ markers = [
     "external: test external",
 ]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+upload_to_pypi = true
+branch = "main"
+build_command = "uv build"
+

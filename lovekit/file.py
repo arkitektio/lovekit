@@ -4,6 +4,8 @@ import threading
 import asyncio
 import janus
 import cv2
+import numpy as np
+from datetime import datetime
 
 
 async def astream_videofile(
@@ -18,14 +20,20 @@ async def astream_videofile(
     # publish a track
     source = rtc.VideoSource(width, height)
     track = rtc.LocalVideoTrack.create_video_track("hue", source)
-    options = rtc.TrackPublishOptions()
-    options.source = rtc.TrackSource.SOURCE_CAMERA
+    options = rtc.TrackPublishOptions(
+        source=rtc.TrackSource.SOURCE_CAMERA,
+        video_encoding=rtc.VideoEncoding(
+            max_framerate=frame_rate,
+            max_bitrate=5000000,  # 5 Mbps
+        ),
+    )
+
     _ = await room.local_participant.publish_track(track, options)
     video_path = "earth.mp4"
     event = threading.Event()
     queue: janus.Queue[rtc.VideoFrame | None] = janus.Queue()
     threading.Thread(
-        target=display_video,
+        target=display_clock_video,
         args=(queue.sync_q, video_path, event, width, height, frame_rate),
     ).start()
 
@@ -33,21 +41,7 @@ async def astream_videofile(
         while True:
             frame = await queue.async_q.get()
             if frame is None:
-                if auto_restream:
-                    threading.Thread(
-                        target=display_video,
-                        args=(
-                            queue.sync_q,
-                            video_path,
-                            event,
-                            width,
-                            height,
-                            frame_rate,
-                        ),
-                    ).start()
-                    continue
-                else:
-                    break
+                break
             source.capture_frame(frame)
 
             await asyncio.sleep(
@@ -91,4 +85,55 @@ def display_video(
         time.sleep(1 / frame_rate)
 
     cap.release()
+    squeue.put_nowait(None)
+
+
+def display_clock_video(
+    squeue: janus.SyncQueue["rtc.VideoFrame | None"],
+    video_path: str,
+    event: threading.Event,
+    width: int,
+    height: int,
+    frame_rate: int,
+):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    while not event.is_set():
+        # Create a black background
+        frame = np.zeros((height, width, 3), dtype=np.uint8)
+
+        # Get current time
+        timestamp = datetime.now().strftime("%H:%M:%S:%f")
+
+        # Draw the time on the frame
+        cv2.putText(
+            frame,
+            timestamp,
+            (50, height // 2),
+            font,
+            3,
+            (255, 255, 255),
+            6,
+            cv2.LINE_AA,
+        )
+
+        # Convert BGR frame to RGBA format with manual channel ordering
+        b, g, r = cv2.split(frame)
+        alpha = np.ones(b.shape, dtype=b.dtype) * 255
+        rgba_frame = cv2.merge((r, g, b, alpha))
+
+        # Create and queue the VideoFrame
+        frame_data = rgba_frame.tobytes()
+        video_frame = rtc.VideoFrame(
+            width, height, rtc.VideoBufferType.RGBA, frame_data
+        )
+
+        try:
+            squeue.put_nowait(video_frame)
+        except Exception as e:
+            print(f"Queue error: {e}")
+            break
+
+        time.sleep(0.04)
+
     squeue.put_nowait(None)

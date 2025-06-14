@@ -1,7 +1,7 @@
 from types import TracebackType
 from typing import Optional, Type
 from pydantic import Field
-from rath import rath
+from rath.rath import Rath
 import contextvars
 
 from rath.links.auth import AuthTokenLink
@@ -23,8 +23,8 @@ class LovekitLinkComposition(TypedComposedLink):
     split: SplitLink
 
 
-class LovekitRath(rath.Rath):
-    """Fluss Rath
+class LovekitRath(Rath):
+    """Lovekit Rath
 
     Args:
         rath (_type_): _description_

@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.1 (2025-06-14)
+
+### Bug Fixes
+
+- Add api description
+  ([`ee81fb0`](https://github.com/arkitektio/lovekit/commit/ee81fb0198c76c28ebca99d06b54f7c933465fa9))
+
+
 ## v1.0.0 (2025-06-14)
 
 ### Features

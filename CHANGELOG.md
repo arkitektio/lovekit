@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.1.0 (2025-06-27)
+
+### Features
+
+- Updated arkitekt stack
+  ([`d78219a`](https://github.com/arkitektio/lovekit/commit/d78219a1a425a13a58c052a1912466daab08d844))
+
+
 ## v1.0.1 (2025-06-14)
 
 ### Bug Fixes

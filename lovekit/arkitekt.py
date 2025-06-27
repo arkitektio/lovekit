@@ -1,8 +1,7 @@
 from graphql import OperationType
-from arkitekt_next.base_models import Manifest
 from fakts_next.contrib.rath.aiohttp import FaktsAIOHttpLink
+from fakts_next.contrib.rath.auth import FaktsAuthLink
 from fakts_next.contrib.rath.graphql_ws import FaktsGraphQLWSLink
-from herre_next import Herre
 from fakts_next import Fakts
 
 from arkitekt_next.service_registry import (
@@ -10,8 +9,7 @@ from arkitekt_next.service_registry import (
     Params,
     get_default_service_registry,
 )
-from arkitekt_next.base_models import Requirement
-from herre_next.contrib.rath.auth_link import HerreAuthLink
+from fakts_next.models import Requirement
 from lovekit.lovekit import Lovekit
 from lovekit.rath import LovekitRath, LovekitLinkComposition
 from rath.links.split import SplitLink
@@ -22,12 +20,14 @@ class LovekitService(BaseArkitektService):
         return "lovekit"
 
     def build_service(
-        self, fakts: Fakts, herre: Herre, params: Params, manifest: Manifest
+        self,
+        fakts: Fakts,
+        params: Params,
     ):
         return Lovekit(
             rath=LovekitRath(
                 link=LovekitLinkComposition(
-                    auth=HerreAuthLink(herre=herre),
+                    auth=FaktsAuthLink(fakts=fakts),
                     split=SplitLink(
                         left=FaktsAIOHttpLink(
                             fakts_group="lovekit", fakts=fakts, endpoint_url="FAKE_URL"

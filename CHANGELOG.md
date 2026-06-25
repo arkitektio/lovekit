@@ -2,15 +2,7 @@
 
 <!-- version list -->
 
-## v1.2.0-rc.5 (2026-06-25)
-
-
-## v1.2.0-rc.4 (2026-06-25)
-
-### Bug Fixes
-
-- Update to newest
-  ([`5919201`](https://github.com/arkitektio/lovekit/commit/5919201539e265b37b536734c0253abc587503e7))
+## v1.2.0 (2026-06-25)
 
 
 ## v1.2.0-rc.3 (2026-06-25)

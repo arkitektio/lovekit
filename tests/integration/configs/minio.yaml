@@ -1,0 +1,8 @@
+buckets:
+  - name: media
+users:
+  - access_key: minio_access_key
+    name: lovekit
+    policies:
+      - readwrite
+    secret_key: minio_secret_key

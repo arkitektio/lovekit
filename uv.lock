@@ -441,7 +441,7 @@ wheels = [
 
 [[package]]
 name = "lovekit"
-version = "1.2.0rc4"
+version = "1.2.0rc5"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

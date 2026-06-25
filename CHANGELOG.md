@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.0-rc.2 (2026-06-25)
+
+### Bug Fixes
+
+- With pin to 3.13 for integration tests
+  ([`bd74b25`](https://github.com/arkitektio/lovekit/commit/bd74b2580a82874b648311dce583baa89166cda1))
+
+
 ## v1.2.0-rc.1 (2026-06-25)
 
 ### Features

@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.11"
 
 [[package]]
@@ -538,7 +538,7 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.5,<4" },
     { name = "livekit", specifier = ">=0.16.3" },
-    { name = "rath", specifier = ">=3.5" },
+    { name = "rath", specifier = ">=3.12" },
     { name = "uv", marker = "extra == 'build'", specifier = ">=0.7.12" },
 ]
 provides-extras = ["build"]
@@ -980,16 +980,16 @@ wheels = [
 
 [[package]]
 name = "rath"
-version = "3.5.0"
+version = "3.12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "graphql-core" },
     { name = "koil" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/56/71/ac0ed6075b6c5a85e53132df4dd0139de26e1292a7ce019b1f9ec3e476c9/rath-3.5.0.tar.gz", hash = "sha256:f26ebe6cca048e91e628eb9906f30619b4505832fa0a205ed40d56b2d7d816f5", size = 32691, upload-time = "2025-05-21T13:05:25.349Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/ef/63420fa273d059aa2c784e63af0430c3661f476c4ff27bcb5faf11c94537/rath-3.12.0.tar.gz", hash = "sha256:2360e0e24a206a473e43213b4993ecd0679d7dd0c4b3c31b8e6ef5037393fbc6", size = 37648, upload-time = "2026-06-21T08:48:08.677Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/fb/fffe48dc3e6eb47695c6290b93df3a9d0010d5fe25c7c5ecf23b0d7d8d84/rath-3.5.0-py3-none-any.whl", hash = "sha256:65a616b512dd95bf04f56a48ac112154d2e6f1ddb4ec4cb96e5b42d2f68b3445", size = 48176, upload-time = "2025-05-21T13:05:24.095Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/af/52786ec863b2bc5eb1c5d2c04c28ed7c32ef61225d407236514eb87d0a39/rath-3.12.0-py3-none-any.whl", hash = "sha256:65435ea42835cd246d9063c69fd4170c32651a02044c50790203738f82a638e3", size = 54824, upload-time = "2026-06-21T08:48:07.7Z" },
 ]
 
 [[package]]

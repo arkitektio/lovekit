@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v1.2.0-rc.3 (2026-06-25)
+
+### Bug Fixes
+
+- With pyright
+  ([`c0ef4e3`](https://github.com/arkitektio/lovekit/commit/c0ef4e37edfc3512e5f536bc368fcf3e722ae6af))
+
+
+## v1.2.0-rc.2 (2026-06-25)
+
+### Bug Fixes
+
+- With pin to 3.13 for integration tests
+  ([`bd74b25`](https://github.com/arkitektio/lovekit/commit/bd74b2580a82874b648311dce583baa89166cda1))
+
+
+## v1.2.0-rc.1 (2026-06-25)
+
+### Features
+
+- With updated workflows
+  ([`191bcd8`](https://github.com/arkitektio/lovekit/commit/191bcd86743523c19bd4ac3081a554735ca0dabf))
+
+
 ## v1.1.0 (2025-06-27)
 
 ### Features

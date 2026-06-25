@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.0-rc.3 (2026-06-25)
+
+### Bug Fixes
+
+- With pyright
+  ([`c0ef4e3`](https://github.com/arkitektio/lovekit/commit/c0ef4e37edfc3512e5f536bc368fcf3e722ae6af))
+
+
 ## v1.2.0-rc.2 (2026-06-25)
 
 ### Bug Fixes

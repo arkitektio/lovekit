@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.0-rc.1 (2026-06-25)
+
+### Features
+
+- With updated workflows
+  ([`191bcd8`](https://github.com/arkitektio/lovekit/commit/191bcd86743523c19bd4ac3081a554735ca0dabf))
+
+
 ## v1.1.0 (2025-06-27)
 
 ### Features

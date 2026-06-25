@@ -31,7 +31,13 @@ dev-dependencies =  [
     "qtpy>=2.4.3",
     "dokker>=2.5",
     "websockets>=15.0.1",
+    "basedpyright>=1.21",
 ]
+
+[tool.basedpyright]
+include = ["lovekit"]
+exclude = ["**/__pycache__", "tests"]
+typeCheckingMode = "standard"
 
 [tool.hatch.build.targets.sdist]
 include = ["lovekit"]

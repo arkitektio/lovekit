@@ -1,0 +1,3 @@
+mutation EnsureStream($input: EnsureStreamInput!) {
+  ensureStream(input: $input)
+}

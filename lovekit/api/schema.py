@@ -1,9 +1,39 @@
-from typing import Literal, Tuple, Optional, List
-from pydantic import ConfigDict, Field, BaseModel
 from enum import Enum
-from lovekit.funcs import execute, aexecute
-from rath.scalars import ID
+from lovekit.funcs import aexecute, execute
 from lovekit.rath import LovekitRath
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from rath.scalars import ID, IDCoercible
+from typing import Annotated, Any, Literal
+
+
+class GraphQLDefault:
+    """Records a GraphQL field schema default value. The client omits the field so the server applies its own default; this preserves the value for introspection."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return "GraphQLDefault(" + repr(self.value) + ")"
+
+
+class UnsetType:
+    """Sentinel for arguments the caller did not provide. Such fields are omitted on serialization so the GraphQL server applies its own default."""
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __repr__(self):
+        return "UNSET"
+
+    def __bool__(self):
+        return False
+
+
+UNSET = UnsetType()
 
 
 class StreamKind(str, Enum):
@@ -11,90 +41,152 @@ class StreamKind(str, Enum):
 
     VIDEO = "VIDEO"
     AUDIO = "AUDIO"
-
-
-class OffsetPaginationInput(BaseModel):
-    offset: int
-    limit: Optional[int] = None
-    model_config = ConfigDict(
-        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
-    )
+    __str__ = str.__str__
 
 
 class CollaborativeBroadcastFilter(BaseModel):
     """Filter for Solo Broadcasts"""
 
-    ids: Optional[Tuple[ID, ...]] = None
-    search: Optional[str] = None
-    and_: Optional["CollaborativeBroadcastFilter"] = Field(alias="AND", default=None)
-    or_: Optional["CollaborativeBroadcastFilter"] = Field(alias="OR", default=None)
-    not_: Optional["CollaborativeBroadcastFilter"] = Field(alias="NOT", default=None)
-    distinct: Optional[bool] = Field(alias="DISTINCT", default=None)
-    model_config = ConfigDict(
-        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    ids: tuple[ID, ...] | None = None
+    search: str | None = None
+    and_: "CollaborativeBroadcastFilter | None" = Field(
+        validation_alias=AliasChoices("and_", "AND"),
+        serialization_alias="AND",
+        default=None,
     )
-
-
-class StreamFilter(BaseModel):
-    """Filter for Streams"""
-
-    ids: Optional[Tuple[ID, ...]] = None
-    search: Optional[str] = None
-    and_: Optional["StreamFilter"] = Field(alias="AND", default=None)
-    or_: Optional["StreamFilter"] = Field(alias="OR", default=None)
-    not_: Optional["StreamFilter"] = Field(alias="NOT", default=None)
-    distinct: Optional[bool] = Field(alias="DISTINCT", default=None)
-    model_config = ConfigDict(
-        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    or_: "CollaborativeBroadcastFilter | None" = Field(
+        validation_alias=AliasChoices("or_", "OR"),
+        serialization_alias="OR",
+        default=None,
     )
+    not_: "CollaborativeBroadcastFilter | None" = Field(
+        validation_alias=AliasChoices("not_", "NOT"),
+        serialization_alias="NOT",
+        default=None,
+    )
+    distinct: bool | None = Field(
+        validation_alias=AliasChoices("distinct", "DISTINCT"),
+        serialization_alias="DISTINCT",
+        default=None,
+    )
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class EnsureSoloBroadcastInput(BaseModel):
+    """No documentation"""
+
+    instance_id: str | None = Field(
+        validation_alias=AliasChoices("instance_id", "instanceId"),
+        serialization_alias="instanceId",
+        default=None,
+    )
+    title: str | None = None
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class EnsureStreamInput(BaseModel):
+    """No documentation"""
+
+    broadcast: ID | None = None
+    kind: Annotated[StreamKind | None, GraphQLDefault("VIDEO")] = None
+    "Default: VIDEO"
+    title: str | None = None
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class OffsetPaginationInput(BaseModel):
+    """No documentation"""
+
+    offset: Annotated[int | None, GraphQLDefault("0")] = None
+    "Default: 0"
+    limit: int | None = None
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 class SoloBroadcastFilter(BaseModel):
     """Filter for Solo Broadcasts"""
 
-    ids: Optional[Tuple[ID, ...]] = None
-    search: Optional[str] = None
-    and_: Optional["SoloBroadcastFilter"] = Field(alias="AND", default=None)
-    or_: Optional["SoloBroadcastFilter"] = Field(alias="OR", default=None)
-    not_: Optional["SoloBroadcastFilter"] = Field(alias="NOT", default=None)
-    distinct: Optional[bool] = Field(alias="DISTINCT", default=None)
-    model_config = ConfigDict(
-        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    ids: tuple[ID, ...] | None = None
+    search: str | None = None
+    and_: "SoloBroadcastFilter | None" = Field(
+        validation_alias=AliasChoices("and_", "AND"),
+        serialization_alias="AND",
+        default=None,
     )
-
-
-class EnsureSoloBroadcastInput(BaseModel):
-    instance_id: Optional[str] = Field(alias="instanceId", default=None)
-    title: Optional[str] = None
-    model_config = ConfigDict(
-        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    or_: "SoloBroadcastFilter | None" = Field(
+        validation_alias=AliasChoices("or_", "OR"),
+        serialization_alias="OR",
+        default=None,
     )
-
-
-class EnsureStreamInput(BaseModel):
-    broadcast: Optional[ID] = None
-    kind: StreamKind
-    title: Optional[str] = None
-    model_config = ConfigDict(
-        frozen=True, extra="forbid", populate_by_name=True, use_enum_values=True
+    not_: "SoloBroadcastFilter | None" = Field(
+        validation_alias=AliasChoices("not_", "NOT"),
+        serialization_alias="NOT",
+        default=None,
     )
+    distinct: bool | None = Field(
+        validation_alias=AliasChoices("distinct", "DISTINCT"),
+        serialization_alias="DISTINCT",
+        default=None,
+    )
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class StreamFilter(BaseModel):
+    """Filter for Streams"""
+
+    ids: tuple[ID, ...] | None = None
+    search: str | None = None
+    and_: "StreamFilter | None" = Field(
+        validation_alias=AliasChoices("and_", "AND"),
+        serialization_alias="AND",
+        default=None,
+    )
+    or_: "StreamFilter | None" = Field(
+        validation_alias=AliasChoices("or_", "OR"),
+        serialization_alias="OR",
+        default=None,
+    )
+    not_: "StreamFilter | None" = Field(
+        validation_alias=AliasChoices("not_", "NOT"),
+        serialization_alias="NOT",
+        default=None,
+    )
+    distinct: bool | None = Field(
+        validation_alias=AliasChoices("distinct", "DISTINCT"),
+        serialization_alias="DISTINCT",
+        default=None,
+    )
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 class Stream(BaseModel):
+    """No documentation"""
+
     typename: Literal["Stream"] = Field(
         alias="__typename", default="Stream", exclude=True
     )
     id: ID
     model_config = ConfigDict(frozen=True)
 
+    class Meta:
+        """Meta class for Stream"""
+
+        document = "fragment Stream on Stream {\n  id\n  __typename\n}"
+        name = "Stream"
+        type = "Stream"
+
 
 class StreamerUser(BaseModel):
+    """No documentation"""
+
     typename: Literal["User"] = Field(alias="__typename", default="User", exclude=True)
     sub: str
     model_config = ConfigDict(frozen=True)
 
 
 class StreamerClient(BaseModel):
+    """No documentation"""
+
     typename: Literal["Client"] = Field(
         alias="__typename", default="Client", exclude=True
     )
@@ -103,6 +195,8 @@ class StreamerClient(BaseModel):
 
 
 class Streamer(BaseModel):
+    """No documentation"""
+
     typename: Literal["Streamer"] = Field(
         alias="__typename", default="Streamer", exclude=True
     )
@@ -110,8 +204,17 @@ class Streamer(BaseModel):
     client: StreamerClient
     model_config = ConfigDict(frozen=True)
 
+    class Meta:
+        """Meta class for Streamer"""
+
+        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}"
+        name = "Streamer"
+        type = "Streamer"
+
 
 class SoloBroadcast(BaseModel):
+    """No documentation"""
+
     typename: Literal["SoloBroadcast"] = Field(
         alias="__typename", default="SoloBroadcast", exclude=True
     )
@@ -120,98 +223,90 @@ class SoloBroadcast(BaseModel):
     streamer: Streamer
     model_config = ConfigDict(frozen=True)
 
+    class Meta:
+        """Meta class for SoloBroadcast"""
+
+        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment SoloBroadcast on SoloBroadcast {\n  id\n  title\n  streamer {\n    ...Streamer\n    __typename\n  }\n  __typename\n}"
+        name = "SoloBroadcast"
+        type = "SoloBroadcast"
+
 
 class CollaborativeBroadcast(BaseModel):
+    """No documentation"""
+
     typename: Literal["CollaborativeBroadcast"] = Field(
         alias="__typename", default="CollaborativeBroadcast", exclude=True
     )
     id: ID
     title: str
-    streamers: Tuple[Streamer, ...]
+    streamers: tuple[Streamer, ...]
     "The streamers that are collaborating on this broadcast."
     model_config = ConfigDict(frozen=True)
 
-
-class EnsureStreamMutation(BaseModel):
-    ensure_stream: str = Field(alias="ensureStream")
-    "Create a stream and return the token for it"
-
-    class Arguments(BaseModel):
-        input: EnsureStreamInput
-
     class Meta:
-        document = "mutation EnsureStream($input: EnsureStreamInput!) {\n  ensureStream(input: $input)\n}"
+        """Meta class for CollaborativeBroadcast"""
+
+        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment CollaborativeBroadcast on CollaborativeBroadcast {\n  id\n  title\n  streamers {\n    ...Streamer\n    __typename\n  }\n  __typename\n}"
+        name = "CollaborativeBroadcast"
+        type = "CollaborativeBroadcast"
 
 
 class EnsureSoloBroadcastMutation(BaseModel):
+    """No documentation found for this operation."""
+
     ensure_solo_broadcast: SoloBroadcast = Field(alias="ensureSoloBroadcast")
     "Create a solo broadcast"
 
     class Arguments(BaseModel):
+        """Arguments for EnsureSoloBroadcast"""
+
         input: EnsureSoloBroadcastInput
 
     class Meta:
+        """Meta class for EnsureSoloBroadcast"""
+
         document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment SoloBroadcast on SoloBroadcast {\n  id\n  title\n  streamer {\n    ...Streamer\n    __typename\n  }\n  __typename\n}\n\nmutation EnsureSoloBroadcast($input: EnsureSoloBroadcastInput!) {\n  ensureSoloBroadcast(input: $input) {\n    ...SoloBroadcast\n    __typename\n  }\n}"
 
 
-class GetStreamQuery(BaseModel):
-    stream: Stream
-    "Get a stream by ID"
+class EnsureStreamMutation(BaseModel):
+    """No documentation found for this operation."""
+
+    ensure_stream: str = Field(alias="ensureStream")
+    "Create a stream and return the token for it"
 
     class Arguments(BaseModel):
-        id: ID
+        """Arguments for EnsureStream"""
+
+        input: EnsureStreamInput
 
     class Meta:
-        document = "fragment Stream on Stream {\n  id\n  __typename\n}\n\nquery GetStream($id: ID!) {\n  stream(id: $id) {\n    ...Stream\n    __typename\n  }\n}"
+        """Meta class for EnsureStream"""
 
-
-class SearchStreamsQueryOptions(BaseModel):
-    typename: Literal["Stream"] = Field(
-        alias="__typename", default="Stream", exclude=True
-    )
-    value: ID
-    label: str
-    model_config = ConfigDict(frozen=True)
-
-
-class SearchStreamsQuery(BaseModel):
-    options: Tuple[SearchStreamsQueryOptions, ...]
-    "Get a stream"
-
-    class Arguments(BaseModel):
-        search: Optional[str] = Field(default=None)
-        values: Optional[List[ID]] = Field(default=None)
-
-    class Meta:
-        document = "query SearchStreams($search: String, $values: [ID!]) {\n  options: streams(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: title\n    __typename\n  }\n}"
-
-
-class ListStreamsQuery(BaseModel):
-    streams: Tuple[Stream, ...]
-    "Get a stream"
-
-    class Arguments(BaseModel):
-        filter: Optional[StreamFilter] = Field(default=None)
-        pagination: Optional[OffsetPaginationInput] = Field(default=None)
-
-    class Meta:
-        document = "fragment Stream on Stream {\n  id\n  __typename\n}\n\nquery ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {\n  streams(filters: $filter, pagination: $pagination) {\n    ...Stream\n    __typename\n  }\n}"
+        document = "mutation EnsureStream($input: EnsureStreamInput!) {\n  ensureStream(input: $input)\n}"
 
 
 class GetCollaborativeBroadcastQuery(BaseModel):
+    """No documentation found for this operation."""
+
     collaborative_broadcast: CollaborativeBroadcast = Field(
         alias="collaborativeBroadcast"
     )
     "Get a collaborative broadcast by ID"
 
     class Arguments(BaseModel):
+        """Arguments for GetCollaborativeBroadcast"""
+
         id: ID
 
     class Meta:
+        """Meta class for GetCollaborativeBroadcast"""
+
         document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment CollaborativeBroadcast on CollaborativeBroadcast {\n  id\n  title\n  streamers {\n    ...Streamer\n    __typename\n  }\n  __typename\n}\n\nquery GetCollaborativeBroadcast($id: ID!) {\n  collaborativeBroadcast(id: $id) {\n    ...CollaborativeBroadcast\n    __typename\n  }\n}"
 
 
 class SearchollaborativeBroadcastsQueryOptions(BaseModel):
+    """No documentation"""
+
     typename: Literal["CollaborativeBroadcast"] = Field(
         alias="__typename", default="CollaborativeBroadcast", exclude=True
     )
@@ -221,43 +316,63 @@ class SearchollaborativeBroadcastsQueryOptions(BaseModel):
 
 
 class SearchollaborativeBroadcastsQuery(BaseModel):
-    options: Tuple[SearchollaborativeBroadcastsQueryOptions, ...]
+    """No documentation found for this operation."""
+
+    options: tuple[SearchollaborativeBroadcastsQueryOptions, ...]
     "Get all collaborative broadcasts"
 
     class Arguments(BaseModel):
-        search: Optional[str] = Field(default=None)
-        values: Optional[List[ID]] = Field(default=None)
+        """Arguments for SearchollaborativeBroadcasts"""
+
+        search: str | None = Field(default=None)
+        values: list[ID] | None = Field(default=None)
 
     class Meta:
+        """Meta class for SearchollaborativeBroadcasts"""
+
         document = "query SearchollaborativeBroadcasts($search: String, $values: [ID!]) {\n  options: collaborativeBroadcasts(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: title\n    __typename\n  }\n}"
 
 
 class ListCollaborativeBroadcastsQuery(BaseModel):
-    collaborative_broadcasts: Tuple[CollaborativeBroadcast, ...] = Field(
+    """No documentation found for this operation."""
+
+    collaborative_broadcasts: tuple[CollaborativeBroadcast, ...] = Field(
         alias="collaborativeBroadcasts"
     )
     "Get all collaborative broadcasts"
 
     class Arguments(BaseModel):
-        filter: Optional[CollaborativeBroadcastFilter] = Field(default=None)
-        pagination: Optional[OffsetPaginationInput] = Field(default=None)
+        """Arguments for ListCollaborativeBroadcasts"""
+
+        filter: CollaborativeBroadcastFilter | None = Field(default=None)
+        pagination: OffsetPaginationInput | None = Field(default=None)
 
     class Meta:
+        """Meta class for ListCollaborativeBroadcasts"""
+
         document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment CollaborativeBroadcast on CollaborativeBroadcast {\n  id\n  title\n  streamers {\n    ...Streamer\n    __typename\n  }\n  __typename\n}\n\nquery ListCollaborativeBroadcasts($filter: CollaborativeBroadcastFilter, $pagination: OffsetPaginationInput) {\n  collaborativeBroadcasts(filters: $filter, pagination: $pagination) {\n    ...CollaborativeBroadcast\n    __typename\n  }\n}"
 
 
 class GetSoloBroadcastQuery(BaseModel):
+    """No documentation found for this operation."""
+
     solo_broadcast: SoloBroadcast = Field(alias="soloBroadcast")
     "Get a solo broadcast by ID"
 
     class Arguments(BaseModel):
+        """Arguments for GetSoloBroadcast"""
+
         id: ID
 
     class Meta:
+        """Meta class for GetSoloBroadcast"""
+
         document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment SoloBroadcast on SoloBroadcast {\n  id\n  title\n  streamer {\n    ...Streamer\n    __typename\n  }\n  __typename\n}\n\nquery GetSoloBroadcast($id: ID!) {\n  soloBroadcast(id: $id) {\n    ...SoloBroadcast\n    __typename\n  }\n}"
 
 
 class SearchSoloBroadcastQueryOptions(BaseModel):
+    """No documentation"""
+
     typename: Literal["SoloBroadcast"] = Field(
         alias="__typename", default="SoloBroadcast", exclude=True
     )
@@ -267,93 +382,115 @@ class SearchSoloBroadcastQueryOptions(BaseModel):
 
 
 class SearchSoloBroadcastQuery(BaseModel):
-    options: Tuple[SearchSoloBroadcastQueryOptions, ...]
+    """No documentation found for this operation."""
+
+    options: tuple[SearchSoloBroadcastQueryOptions, ...]
     "Get all solo broadcasts"
 
     class Arguments(BaseModel):
-        search: Optional[str] = Field(default=None)
-        values: Optional[List[ID]] = Field(default=None)
+        """Arguments for SearchSoloBroadcast"""
+
+        search: str | None = Field(default=None)
+        values: list[ID] | None = Field(default=None)
 
     class Meta:
+        """Meta class for SearchSoloBroadcast"""
+
         document = "query SearchSoloBroadcast($search: String, $values: [ID!]) {\n  options: soloBroadcasts(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: title\n    __typename\n  }\n}"
 
 
 class ListSoloBroadcastsQuery(BaseModel):
-    solo_broadcasts: Tuple[SoloBroadcast, ...] = Field(alias="soloBroadcasts")
+    """No documentation found for this operation."""
+
+    solo_broadcasts: tuple[SoloBroadcast, ...] = Field(alias="soloBroadcasts")
     "Get all solo broadcasts"
 
     class Arguments(BaseModel):
-        filter: Optional[SoloBroadcastFilter] = Field(default=None)
-        pagination: Optional[OffsetPaginationInput] = Field(default=None)
+        """Arguments for ListSoloBroadcasts"""
+
+        filter: SoloBroadcastFilter | None = Field(default=None)
+        pagination: OffsetPaginationInput | None = Field(default=None)
 
     class Meta:
+        """Meta class for ListSoloBroadcasts"""
+
         document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment SoloBroadcast on SoloBroadcast {\n  id\n  title\n  streamer {\n    ...Streamer\n    __typename\n  }\n  __typename\n}\n\nquery ListSoloBroadcasts($filter: SoloBroadcastFilter, $pagination: OffsetPaginationInput) {\n  soloBroadcasts(filters: $filter, pagination: $pagination) {\n    ...SoloBroadcast\n    __typename\n  }\n}"
 
 
-async def aensure_stream(
-    kind: StreamKind,
-    broadcast: Optional[ID] = None,
-    title: Optional[str] = None,
-    rath: Optional[LovekitRath] = None,
-) -> str:
-    """EnsureStream
+class GetStreamQuery(BaseModel):
+    """No documentation found for this operation."""
 
-    Create a stream and return the token for it
+    stream: Stream
+    "Get a stream by ID"
 
-    Arguments:
-        broadcast: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
-        kind: StreamKind (required)
-        title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
-        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
+    class Arguments(BaseModel):
+        """Arguments for GetStream"""
 
-    Returns:
-        str
-    """
-    return (
-        await aexecute(
-            EnsureStreamMutation,
-            {"input": {"broadcast": broadcast, "kind": kind, "title": title}},
-            rath=rath,
-        )
-    ).ensure_stream
+        id: ID
+
+    class Meta:
+        """Meta class for GetStream"""
+
+        document = "fragment Stream on Stream {\n  id\n  __typename\n}\n\nquery GetStream($id: ID!) {\n  stream(id: $id) {\n    ...Stream\n    __typename\n  }\n}"
 
 
-def ensure_stream(
-    kind: StreamKind,
-    broadcast: Optional[ID] = None,
-    title: Optional[str] = None,
-    rath: Optional[LovekitRath] = None,
-) -> str:
-    """EnsureStream
+class SearchStreamsQueryOptions(BaseModel):
+    """No documentation"""
 
-    Create a stream and return the token for it
+    typename: Literal["Stream"] = Field(
+        alias="__typename", default="Stream", exclude=True
+    )
+    value: ID
+    label: str
+    model_config = ConfigDict(frozen=True)
 
-    Arguments:
-        broadcast: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
-        kind: StreamKind (required)
-        title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
-        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
-    Returns:
-        str
-    """
-    return execute(
-        EnsureStreamMutation,
-        {"input": {"broadcast": broadcast, "kind": kind, "title": title}},
-        rath=rath,
-    ).ensure_stream
+class SearchStreamsQuery(BaseModel):
+    """No documentation found for this operation."""
+
+    options: tuple[SearchStreamsQueryOptions, ...]
+    "Get a stream"
+
+    class Arguments(BaseModel):
+        """Arguments for SearchStreams"""
+
+        search: str | None = Field(default=None)
+        values: list[ID] | None = Field(default=None)
+
+    class Meta:
+        """Meta class for SearchStreams"""
+
+        document = "query SearchStreams($search: String, $values: [ID!]) {\n  options: streams(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: title\n    __typename\n  }\n}"
+
+
+class ListStreamsQuery(BaseModel):
+    """No documentation found for this operation."""
+
+    streams: tuple[Stream, ...]
+    "Get a stream"
+
+    class Arguments(BaseModel):
+        """Arguments for ListStreams"""
+
+        filter: StreamFilter | None = Field(default=None)
+        pagination: OffsetPaginationInput | None = Field(default=None)
+
+    class Meta:
+        """Meta class for ListStreams"""
+
+        document = "fragment Stream on Stream {\n  id\n  __typename\n}\n\nquery ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {\n  streams(filters: $filter, pagination: $pagination) {\n    ...Stream\n    __typename\n  }\n}"
 
 
 async def aensure_solo_broadcast(
-    instance_id: Optional[str] = None,
-    title: Optional[str] = None,
-    rath: Optional[LovekitRath] = None,
+    instance_id: str | None | UnsetType = UNSET,
+    title: str | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
 ) -> SoloBroadcast:
     """EnsureSoloBroadcast
 
     Create a solo broadcast
 
-    Arguments:
+    Args:
         instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
         title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
@@ -361,25 +498,28 @@ async def aensure_solo_broadcast(
     Returns:
         SoloBroadcast
     """
+    variables: dict[str, Any] = {}
+    _input: dict[str, Any] = {}
+    if instance_id is not UNSET:
+        _input["instanceId"] = instance_id
+    if title is not UNSET:
+        _input["title"] = title
+    variables["input"] = _input
     return (
-        await aexecute(
-            EnsureSoloBroadcastMutation,
-            {"input": {"instanceId": instance_id, "title": title}},
-            rath=rath,
-        )
+        await aexecute(EnsureSoloBroadcastMutation, variables, rath=rath)
     ).ensure_solo_broadcast
 
 
 def ensure_solo_broadcast(
-    instance_id: Optional[str] = None,
-    title: Optional[str] = None,
-    rath: Optional[LovekitRath] = None,
+    instance_id: str | None | UnsetType = UNSET,
+    title: str | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
 ) -> SoloBroadcast:
     """EnsureSoloBroadcast
 
     Create a solo broadcast
 
-    Arguments:
+    Args:
         instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
         title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
@@ -387,397 +527,498 @@ def ensure_solo_broadcast(
     Returns:
         SoloBroadcast
     """
+    variables: dict[str, Any] = {}
+    _input: dict[str, Any] = {}
+    if instance_id is not UNSET:
+        _input["instanceId"] = instance_id
+    if title is not UNSET:
+        _input["title"] = title
+    variables["input"] = _input
     return execute(
-        EnsureSoloBroadcastMutation,
-        {"input": {"instanceId": instance_id, "title": title}},
-        rath=rath,
+        EnsureSoloBroadcastMutation, variables, rath=rath
     ).ensure_solo_broadcast
 
 
-async def aget_stream(id: ID, rath: Optional[LovekitRath] = None) -> Stream:
-    """GetStream
+async def aensure_stream(
+    kind: StreamKind,
+    broadcast: IDCoercible | None | UnsetType = UNSET,
+    title: str | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> str:
+    """EnsureStream
 
-    Get a stream by ID
+    Create a stream and return the token for it
 
-    Arguments:
-        id (ID): No description
+    Args:
+        broadcast: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+        kind: StreamKind (required)
+        title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Stream
+        str
     """
-    return (await aexecute(GetStreamQuery, {"id": id}, rath=rath)).stream
+    variables: dict[str, Any] = {}
+    _input: dict[str, Any] = {}
+    if broadcast is not UNSET:
+        _input["broadcast"] = broadcast
+    _input["kind"] = kind
+    if title is not UNSET:
+        _input["title"] = title
+    variables["input"] = _input
+    return (await aexecute(EnsureStreamMutation, variables, rath=rath)).ensure_stream
 
 
-def get_stream(id: ID, rath: Optional[LovekitRath] = None) -> Stream:
-    """GetStream
+def ensure_stream(
+    kind: StreamKind,
+    broadcast: IDCoercible | None | UnsetType = UNSET,
+    title: str | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> str:
+    """EnsureStream
 
-    Get a stream by ID
+    Create a stream and return the token for it
 
-    Arguments:
-        id (ID): No description
+    Args:
+        broadcast: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+        kind: StreamKind (required)
+        title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        Stream
+        str
     """
-    return execute(GetStreamQuery, {"id": id}, rath=rath).stream
-
-
-async def asearch_streams(
-    search: Optional[str] = None,
-    values: Optional[List[ID]] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[SearchStreamsQueryOptions]:
-    """SearchStreams
-
-    Get a stream
-
-    Arguments:
-        search (Optional[str], optional): No description.
-        values (Optional[List[ID]], optional): No description.
-        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        List[SearchStreamsQueryStreams]
-    """
-    return (
-        await aexecute(
-            SearchStreamsQuery, {"search": search, "values": values}, rath=rath
-        )
-    ).options
-
-
-def search_streams(
-    search: Optional[str] = None,
-    values: Optional[List[ID]] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[SearchStreamsQueryOptions]:
-    """SearchStreams
-
-    Get a stream
-
-    Arguments:
-        search (Optional[str], optional): No description.
-        values (Optional[List[ID]], optional): No description.
-        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        List[SearchStreamsQueryStreams]
-    """
-    return execute(
-        SearchStreamsQuery, {"search": search, "values": values}, rath=rath
-    ).options
-
-
-async def alist_streams(
-    filter: Optional[StreamFilter] = None,
-    pagination: Optional[OffsetPaginationInput] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[Stream]:
-    """ListStreams
-
-    Get a stream
-
-    Arguments:
-        filter (Optional[StreamFilter], optional): No description.
-        pagination (Optional[OffsetPaginationInput], optional): No description.
-        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        List[Stream]
-    """
-    return (
-        await aexecute(
-            ListStreamsQuery, {"filter": filter, "pagination": pagination}, rath=rath
-        )
-    ).streams
-
-
-def list_streams(
-    filter: Optional[StreamFilter] = None,
-    pagination: Optional[OffsetPaginationInput] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[Stream]:
-    """ListStreams
-
-    Get a stream
-
-    Arguments:
-        filter (Optional[StreamFilter], optional): No description.
-        pagination (Optional[OffsetPaginationInput], optional): No description.
-        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
-
-    Returns:
-        List[Stream]
-    """
-    return execute(
-        ListStreamsQuery, {"filter": filter, "pagination": pagination}, rath=rath
-    ).streams
+    variables: dict[str, Any] = {}
+    _input: dict[str, Any] = {}
+    if broadcast is not UNSET:
+        _input["broadcast"] = broadcast
+    _input["kind"] = kind
+    if title is not UNSET:
+        _input["title"] = title
+    variables["input"] = _input
+    return execute(EnsureStreamMutation, variables, rath=rath).ensure_stream
 
 
 async def aget_collaborative_broadcast(
-    id: ID, rath: Optional[LovekitRath] = None
+    id: IDCoercible, rath: LovekitRath | None = None
 ) -> CollaborativeBroadcast:
     """GetCollaborativeBroadcast
 
     Get a collaborative broadcast by ID
 
-    Arguments:
+    Args:
         id (ID): No description
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         CollaborativeBroadcast
     """
+    variables: dict[str, Any] = {}
+    variables["id"] = id
     return (
-        await aexecute(GetCollaborativeBroadcastQuery, {"id": id}, rath=rath)
+        await aexecute(GetCollaborativeBroadcastQuery, variables, rath=rath)
     ).collaborative_broadcast
 
 
 def get_collaborative_broadcast(
-    id: ID, rath: Optional[LovekitRath] = None
+    id: IDCoercible, rath: LovekitRath | None = None
 ) -> CollaborativeBroadcast:
     """GetCollaborativeBroadcast
 
     Get a collaborative broadcast by ID
 
-    Arguments:
+    Args:
         id (ID): No description
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         CollaborativeBroadcast
     """
+    variables: dict[str, Any] = {}
+    variables["id"] = id
     return execute(
-        GetCollaborativeBroadcastQuery, {"id": id}, rath=rath
+        GetCollaborativeBroadcastQuery, variables, rath=rath
     ).collaborative_broadcast
 
 
 async def asearchollaborative_broadcasts(
-    search: Optional[str] = None,
-    values: Optional[List[ID]] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[SearchollaborativeBroadcastsQueryOptions]:
+    search: str | None | UnsetType = UNSET,
+    values: list[IDCoercible] | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[SearchollaborativeBroadcastsQueryOptions, ...]:
     """SearchollaborativeBroadcasts
 
     Get all collaborative broadcasts
 
-    Arguments:
-        search (Optional[str], optional): No description.
-        values (Optional[List[ID]], optional): No description.
+    Args:
+        search (str | None, optional): No description.
+        values (list[ID] | None, optional): No description.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchollaborativeBroadcastsQueryCollaborativebroadcasts]
+        list[SearchollaborativeBroadcastsQueryCollaborativeBroadcasts]
     """
+    variables: dict[str, Any] = {}
+    if search is not UNSET:
+        variables["search"] = search
+    if values is not UNSET:
+        variables["values"] = values
     return (
-        await aexecute(
-            SearchollaborativeBroadcastsQuery,
-            {"search": search, "values": values},
-            rath=rath,
-        )
+        await aexecute(SearchollaborativeBroadcastsQuery, variables, rath=rath)
     ).options
 
 
 def searchollaborative_broadcasts(
-    search: Optional[str] = None,
-    values: Optional[List[ID]] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[SearchollaborativeBroadcastsQueryOptions]:
+    search: str | None | UnsetType = UNSET,
+    values: list[IDCoercible] | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[SearchollaborativeBroadcastsQueryOptions, ...]:
     """SearchollaborativeBroadcasts
 
     Get all collaborative broadcasts
 
-    Arguments:
-        search (Optional[str], optional): No description.
-        values (Optional[List[ID]], optional): No description.
+    Args:
+        search (str | None, optional): No description.
+        values (list[ID] | None, optional): No description.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchollaborativeBroadcastsQueryCollaborativebroadcasts]
+        list[SearchollaborativeBroadcastsQueryCollaborativeBroadcasts]
     """
-    return execute(
-        SearchollaborativeBroadcastsQuery,
-        {"search": search, "values": values},
-        rath=rath,
-    ).options
+    variables: dict[str, Any] = {}
+    if search is not UNSET:
+        variables["search"] = search
+    if values is not UNSET:
+        variables["values"] = values
+    return execute(SearchollaborativeBroadcastsQuery, variables, rath=rath).options
 
 
 async def alist_collaborative_broadcasts(
-    filter: Optional[CollaborativeBroadcastFilter] = None,
-    pagination: Optional[OffsetPaginationInput] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[CollaborativeBroadcast]:
+    filter: CollaborativeBroadcastFilter | None | UnsetType = UNSET,
+    pagination: OffsetPaginationInput | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[CollaborativeBroadcast, ...]:
     """ListCollaborativeBroadcasts
 
     Get all collaborative broadcasts
 
-    Arguments:
-        filter (Optional[CollaborativeBroadcastFilter], optional): No description.
-        pagination (Optional[OffsetPaginationInput], optional): No description.
+    Args:
+        filter (CollaborativeBroadcastFilter | None, optional): No description.
+        pagination (OffsetPaginationInput | None, optional): No description.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[CollaborativeBroadcast]
+        list[CollaborativeBroadcast]
     """
+    variables: dict[str, Any] = {}
+    if filter is not UNSET:
+        variables["filter"] = filter
+    if pagination is not UNSET:
+        variables["pagination"] = pagination
     return (
-        await aexecute(
-            ListCollaborativeBroadcastsQuery,
-            {"filter": filter, "pagination": pagination},
-            rath=rath,
-        )
+        await aexecute(ListCollaborativeBroadcastsQuery, variables, rath=rath)
     ).collaborative_broadcasts
 
 
 def list_collaborative_broadcasts(
-    filter: Optional[CollaborativeBroadcastFilter] = None,
-    pagination: Optional[OffsetPaginationInput] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[CollaborativeBroadcast]:
+    filter: CollaborativeBroadcastFilter | None | UnsetType = UNSET,
+    pagination: OffsetPaginationInput | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[CollaborativeBroadcast, ...]:
     """ListCollaborativeBroadcasts
 
     Get all collaborative broadcasts
 
-    Arguments:
-        filter (Optional[CollaborativeBroadcastFilter], optional): No description.
-        pagination (Optional[OffsetPaginationInput], optional): No description.
+    Args:
+        filter (CollaborativeBroadcastFilter | None, optional): No description.
+        pagination (OffsetPaginationInput | None, optional): No description.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[CollaborativeBroadcast]
+        list[CollaborativeBroadcast]
     """
+    variables: dict[str, Any] = {}
+    if filter is not UNSET:
+        variables["filter"] = filter
+    if pagination is not UNSET:
+        variables["pagination"] = pagination
     return execute(
-        ListCollaborativeBroadcastsQuery,
-        {"filter": filter, "pagination": pagination},
-        rath=rath,
+        ListCollaborativeBroadcastsQuery, variables, rath=rath
     ).collaborative_broadcasts
 
 
 async def aget_solo_broadcast(
-    id: ID, rath: Optional[LovekitRath] = None
+    id: IDCoercible, rath: LovekitRath | None = None
 ) -> SoloBroadcast:
     """GetSoloBroadcast
 
     Get a solo broadcast by ID
 
-    Arguments:
+    Args:
         id (ID): No description
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         SoloBroadcast
     """
-    return (await aexecute(GetSoloBroadcastQuery, {"id": id}, rath=rath)).solo_broadcast
+    variables: dict[str, Any] = {}
+    variables["id"] = id
+    return (await aexecute(GetSoloBroadcastQuery, variables, rath=rath)).solo_broadcast
 
 
-def get_solo_broadcast(id: ID, rath: Optional[LovekitRath] = None) -> SoloBroadcast:
+def get_solo_broadcast(
+    id: IDCoercible, rath: LovekitRath | None = None
+) -> SoloBroadcast:
     """GetSoloBroadcast
 
     Get a solo broadcast by ID
 
-    Arguments:
+    Args:
         id (ID): No description
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
         SoloBroadcast
     """
-    return execute(GetSoloBroadcastQuery, {"id": id}, rath=rath).solo_broadcast
+    variables: dict[str, Any] = {}
+    variables["id"] = id
+    return execute(GetSoloBroadcastQuery, variables, rath=rath).solo_broadcast
 
 
 async def asearch_solo_broadcast(
-    search: Optional[str] = None,
-    values: Optional[List[ID]] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[SearchSoloBroadcastQueryOptions]:
+    search: str | None | UnsetType = UNSET,
+    values: list[IDCoercible] | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[SearchSoloBroadcastQueryOptions, ...]:
     """SearchSoloBroadcast
 
     Get all solo broadcasts
 
-    Arguments:
-        search (Optional[str], optional): No description.
-        values (Optional[List[ID]], optional): No description.
+    Args:
+        search (str | None, optional): No description.
+        values (list[ID] | None, optional): No description.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchSoloBroadcastQuerySolobroadcasts]
+        list[SearchSoloBroadcastQuerySoloBroadcasts]
     """
-    return (
-        await aexecute(
-            SearchSoloBroadcastQuery, {"search": search, "values": values}, rath=rath
-        )
-    ).options
+    variables: dict[str, Any] = {}
+    if search is not UNSET:
+        variables["search"] = search
+    if values is not UNSET:
+        variables["values"] = values
+    return (await aexecute(SearchSoloBroadcastQuery, variables, rath=rath)).options
 
 
 def search_solo_broadcast(
-    search: Optional[str] = None,
-    values: Optional[List[ID]] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[SearchSoloBroadcastQueryOptions]:
+    search: str | None | UnsetType = UNSET,
+    values: list[IDCoercible] | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[SearchSoloBroadcastQueryOptions, ...]:
     """SearchSoloBroadcast
 
     Get all solo broadcasts
 
-    Arguments:
-        search (Optional[str], optional): No description.
-        values (Optional[List[ID]], optional): No description.
+    Args:
+        search (str | None, optional): No description.
+        values (list[ID] | None, optional): No description.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SearchSoloBroadcastQuerySolobroadcasts]
+        list[SearchSoloBroadcastQuerySoloBroadcasts]
     """
-    return execute(
-        SearchSoloBroadcastQuery, {"search": search, "values": values}, rath=rath
-    ).options
+    variables: dict[str, Any] = {}
+    if search is not UNSET:
+        variables["search"] = search
+    if values is not UNSET:
+        variables["values"] = values
+    return execute(SearchSoloBroadcastQuery, variables, rath=rath).options
 
 
 async def alist_solo_broadcasts(
-    filter: Optional[SoloBroadcastFilter] = None,
-    pagination: Optional[OffsetPaginationInput] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[SoloBroadcast]:
+    filter: SoloBroadcastFilter | None | UnsetType = UNSET,
+    pagination: OffsetPaginationInput | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[SoloBroadcast, ...]:
     """ListSoloBroadcasts
 
     Get all solo broadcasts
 
-    Arguments:
-        filter (Optional[SoloBroadcastFilter], optional): No description.
-        pagination (Optional[OffsetPaginationInput], optional): No description.
+    Args:
+        filter (SoloBroadcastFilter | None, optional): No description.
+        pagination (OffsetPaginationInput | None, optional): No description.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SoloBroadcast]
+        list[SoloBroadcast]
     """
+    variables: dict[str, Any] = {}
+    if filter is not UNSET:
+        variables["filter"] = filter
+    if pagination is not UNSET:
+        variables["pagination"] = pagination
     return (
-        await aexecute(
-            ListSoloBroadcastsQuery,
-            {"filter": filter, "pagination": pagination},
-            rath=rath,
-        )
+        await aexecute(ListSoloBroadcastsQuery, variables, rath=rath)
     ).solo_broadcasts
 
 
 def list_solo_broadcasts(
-    filter: Optional[SoloBroadcastFilter] = None,
-    pagination: Optional[OffsetPaginationInput] = None,
-    rath: Optional[LovekitRath] = None,
-) -> List[SoloBroadcast]:
+    filter: SoloBroadcastFilter | None | UnsetType = UNSET,
+    pagination: OffsetPaginationInput | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[SoloBroadcast, ...]:
     """ListSoloBroadcasts
 
     Get all solo broadcasts
 
-    Arguments:
-        filter (Optional[SoloBroadcastFilter], optional): No description.
-        pagination (Optional[OffsetPaginationInput], optional): No description.
+    Args:
+        filter (SoloBroadcastFilter | None, optional): No description.
+        pagination (OffsetPaginationInput | None, optional): No description.
         rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
 
     Returns:
-        List[SoloBroadcast]
+        list[SoloBroadcast]
     """
-    return execute(
-        ListSoloBroadcastsQuery, {"filter": filter, "pagination": pagination}, rath=rath
-    ).solo_broadcasts
+    variables: dict[str, Any] = {}
+    if filter is not UNSET:
+        variables["filter"] = filter
+    if pagination is not UNSET:
+        variables["pagination"] = pagination
+    return execute(ListSoloBroadcastsQuery, variables, rath=rath).solo_broadcasts
+
+
+async def aget_stream(id: IDCoercible, rath: LovekitRath | None = None) -> Stream:
+    """GetStream
+
+    Get a stream by ID
+
+    Args:
+        id (ID): No description
+        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        Stream
+    """
+    variables: dict[str, Any] = {}
+    variables["id"] = id
+    return (await aexecute(GetStreamQuery, variables, rath=rath)).stream
+
+
+def get_stream(id: IDCoercible, rath: LovekitRath | None = None) -> Stream:
+    """GetStream
+
+    Get a stream by ID
+
+    Args:
+        id (ID): No description
+        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        Stream
+    """
+    variables: dict[str, Any] = {}
+    variables["id"] = id
+    return execute(GetStreamQuery, variables, rath=rath).stream
+
+
+async def asearch_streams(
+    search: str | None | UnsetType = UNSET,
+    values: list[IDCoercible] | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[SearchStreamsQueryOptions, ...]:
+    """SearchStreams
+
+    Get a stream
+
+    Args:
+        search (str | None, optional): No description.
+        values (list[ID] | None, optional): No description.
+        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        list[SearchStreamsQueryStreams]
+    """
+    variables: dict[str, Any] = {}
+    if search is not UNSET:
+        variables["search"] = search
+    if values is not UNSET:
+        variables["values"] = values
+    return (await aexecute(SearchStreamsQuery, variables, rath=rath)).options
+
+
+def search_streams(
+    search: str | None | UnsetType = UNSET,
+    values: list[IDCoercible] | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[SearchStreamsQueryOptions, ...]:
+    """SearchStreams
+
+    Get a stream
+
+    Args:
+        search (str | None, optional): No description.
+        values (list[ID] | None, optional): No description.
+        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        list[SearchStreamsQueryStreams]
+    """
+    variables: dict[str, Any] = {}
+    if search is not UNSET:
+        variables["search"] = search
+    if values is not UNSET:
+        variables["values"] = values
+    return execute(SearchStreamsQuery, variables, rath=rath).options
+
+
+async def alist_streams(
+    filter: StreamFilter | None | UnsetType = UNSET,
+    pagination: OffsetPaginationInput | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[Stream, ...]:
+    """ListStreams
+
+    Get a stream
+
+    Args:
+        filter (StreamFilter | None, optional): No description.
+        pagination (OffsetPaginationInput | None, optional): No description.
+        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        list[Stream]
+    """
+    variables: dict[str, Any] = {}
+    if filter is not UNSET:
+        variables["filter"] = filter
+    if pagination is not UNSET:
+        variables["pagination"] = pagination
+    return (await aexecute(ListStreamsQuery, variables, rath=rath)).streams
+
+
+def list_streams(
+    filter: StreamFilter | None | UnsetType = UNSET,
+    pagination: OffsetPaginationInput | None | UnsetType = UNSET,
+    rath: LovekitRath | None = None,
+) -> tuple[Stream, ...]:
+    """ListStreams
+
+    Get a stream
+
+    Args:
+        filter (StreamFilter | None, optional): No description.
+        pagination (OffsetPaginationInput | None, optional): No description.
+        rath (lovekit.rath.LovekitRath, optional): The client we want to use (defaults to the currently active client)
+
+    Returns:
+        list[Stream]
+    """
+    variables: dict[str, Any] = {}
+    if filter is not UNSET:
+        variables["filter"] = filter
+    if pagination is not UNSET:
+        variables["pagination"] = pagination
+    return execute(ListStreamsQuery, variables, rath=rath).streams
 
 
 CollaborativeBroadcastFilter.model_rebuild()

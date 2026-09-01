@@ -1,9 +1,8 @@
 {
-    "schema_url": "http://localhost/lovekit/graphql",
-    "documents": "graphql/lovekit/*/**.graphql",
+    "schema": "http://localhost/lovekit/schema",
+    "documents": "graphql/*/**.graphql",
     "extensions": {
         "turms": {
-            "pydantic_version": "v2",
             "domain": null,
             "out_dir": "lovekit/api",
             "dump_configuration": true,
@@ -11,7 +10,7 @@
             "dump_schema": true,
             "schema_name": "schema.graphql",
             "generated_name": "schema.py",
-            "documents": "graphql/lovekit/*/**.graphql",
+            "documents": "graphql/*/**.graphql",
             "verbose": false,
             "exit_on_error": true,
             "allow_introspection": true,
@@ -28,6 +27,13 @@
                 "JSON": "typing.Any",
                 "ID": "rath.scalars.ID"
             },
+            "coercible_scalars": {},
+            "coercible_inputs": {},
+            "graphql_default_class": null,
+            "deprecated_class": null,
+            "document_field_metadata": true,
+            "unset_type_class": null,
+            "unset_instance": null,
             "freeze": {
                 "enabled": true,
                 "types": [
@@ -37,18 +43,17 @@
                 ],
                 "exclude": null,
                 "include": null,
-                "exclude_fields": [],
-                "include_fields": [],
                 "convert_list_to_tuple": true
             },
+            "create_catchall": true,
             "options": {
                 "enabled": true,
                 "extra": "forbid",
-                "allow_mutation": null,
-                "allow_population_by_field_name": true,
-                "orm_mode": null,
-                "use_enum_values": true,
+                "populate_by_name": null,
+                "from_attributes": null,
+                "use_enum_values": null,
                 "validate_assignment": null,
+                "alias_mode": "split",
                 "types": [
                     "input"
                 ],
@@ -56,9 +61,12 @@
                 "include": null
             },
             "skip_forwards": false,
+            "min_python_version": "3.10",
+            "type_annotation_style": "auto",
             "additional_bases": {},
             "additional_config": {},
             "force_plugin_order": true,
+            "omitted_document_rules": [],
             "parsers": [],
             "plugins": [
                 {
@@ -75,6 +83,9 @@
                 },
                 {
                     "type": "turms.plugins.funcs.FuncsPlugin",
+                    "coercible_scalars": {
+                        "ID": "rath.scalars.IDCoercible"
+                    },
                     "expand_input_types": [
                         "input"
                     ],

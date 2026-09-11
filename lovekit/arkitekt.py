@@ -1,15 +1,15 @@
 from graphql import OperationType
-from fakts_next.contrib.rath.aiohttp import FaktsAIOHttpLink
-from fakts_next.contrib.rath.auth import FaktsAuthLink
-from fakts_next.contrib.rath.graphql_ws import FaktsGraphQLWSLink
-from fakts_next import Fakts
+from fakts.contrib.rath.aiohttp import FaktsAIOHttpLink
+from fakts.contrib.rath.auth import FaktsAuthLink
+from fakts.contrib.rath.graphql_ws import FaktsGraphQLWSLink
+from fakts import Fakts
 
 from arkitekt.service_registry import (
     BaseArkitektService,
     Params,
     get_default_service_registry,
 )
-from fakts_next.models import Requirement
+from fakts.models import Requirement
 from lovekit.lovekit import Lovekit
 from lovekit.rath import LovekitRath, LovekitLinkComposition
 from rath.links.split import SplitLink

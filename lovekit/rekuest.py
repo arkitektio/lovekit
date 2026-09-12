@@ -1,5 +1,5 @@
-from rekuest_next.structures.default import get_default_structure_registry, id_shrink
-from rekuest_next.widgets import SearchWidget
+from rekuest.structures.default import get_default_structure_registry, id_shrink
+from rekuest.widgets import SearchWidget
 from lovekit.api.schema import (
     SoloBroadcast,
     Stream,

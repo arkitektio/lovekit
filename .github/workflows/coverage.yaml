@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]  # or any branches you want to target
   push:
-    branches: [main]at
+    branches: [main]
 
 jobs:
   run_tests:

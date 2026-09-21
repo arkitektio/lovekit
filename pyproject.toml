@@ -8,8 +8,8 @@ readme = "README.md"
 dependencies = [
     "aiohttp>=3.9.5,<4",
     "livekit>=0.16.3",
-    "rath>=3.12",
-    "rekuest>=3",
+    "rath>=4",
+    "rekuest>=4",
 ]
 
 [project.optional-dependencies]

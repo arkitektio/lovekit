@@ -82,48 +82,16 @@
                     "type": "turms.plugins.operations.OperationsPlugin"
                 },
                 {
-                    "type": "turms.plugins.funcs.FuncsPlugin",
+                    "type": "turms.plugins.client.ClientPlugin",
+                    "client_class": "LovekitApi",
+                    "reserved_from": [
+                        "lovekit.lovekit.Lovekit"
+                    ],
                     "coercible_scalars": {
                         "ID": "rath.scalars.IDCoercible"
                     },
                     "expand_input_types": [
                         "input"
-                    ],
-                    "global_kwargs": [
-                        {
-                            "type": "lovekit.rath.LovekitRath",
-                            "key": "rath",
-                            "description": "The client we want to use (defaults to the currently active client)"
-                        }
-                    ],
-                    "definitions": [
-                        {
-                            "type": "subscription",
-                            "is_async": true,
-                            "use": "lovekit.funcs.asubscribe"
-                        },
-                        {
-                            "type": "query",
-                            "is_async": true,
-                            "use": "lovekit.funcs.aexecute"
-                        },
-                        {
-                            "type": "mutation",
-                            "is_async": true,
-                            "use": "lovekit.funcs.aexecute"
-                        },
-                        {
-                            "type": "subscription",
-                            "use": "lovekit.funcs.subscribe"
-                        },
-                        {
-                            "type": "query",
-                            "use": "lovekit.funcs.execute"
-                        },
-                        {
-                            "type": "mutation",
-                            "use": "lovekit.funcs.execute"
-                        }
                     ]
                 }
             ],

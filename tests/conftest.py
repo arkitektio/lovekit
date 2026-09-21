@@ -68,12 +68,12 @@ def integration_ports() -> Generator[dict[str, int], None, None]:
     an unpublished port reads back as ``None`` and the test URLs would quietly
     become ``http://localhost:None`` instead of failing loudly.
     """
-    lovekit_port, minio_port = _reserve_free_ports(2)
-    env = {"LOVEKIT_HOST_PORT": str(lovekit_port), "MINIO_HOST_PORT": str(minio_port)}
+    lovekit_port, rustfs_port = _reserve_free_ports(2)
+    env = {"LOVEKIT_HOST_PORT": str(lovekit_port), "RUSTFS_HOST_PORT": str(rustfs_port)}
     previous = {key: os.environ.get(key) for key in env}
     os.environ.update(env)
     try:
-        yield {"lovekit": lovekit_port, "minio": minio_port}
+        yield {"lovekit": lovekit_port, "rustfs": rustfs_port}
     finally:
         for key, value in previous.items():
             if value is None:
@@ -153,3 +153,9 @@ def deployed_app(integration_ports: dict[str, int]) -> Generator[DeployedLovekit
                 lovekit_watcher=watcher,
                 lovekit=lovekit,
             )
+
+
+@pytest.fixture(scope="session")
+def lovekit(deployed_app: DeployedLovekit) -> Lovekit:
+    """The deployment's client: API calls are its methods, nothing is ambient."""
+    return deployed_app.lovekit

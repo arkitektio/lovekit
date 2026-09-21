@@ -13,7 +13,6 @@ type Client @key(fields: "id", resolvable: true) {
   id: ID!
   release: Release
   clientId: String!
-  name: String!
 }
 
 type CollaborativeBroadcast {

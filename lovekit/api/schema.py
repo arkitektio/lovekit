@@ -1,7 +1,8 @@
+import builtins
 from enum import Enum
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from rath.scalars import ID, IDCoercible
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 
 class GraphQLDefault:
@@ -501,8 +502,8 @@ class LovekitApi:
         Returns:
             SoloBroadcast
         """
-        variables: dict[str, Any] = {}
-        _input: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
+        _input: dict[str, builtins.object] = {}
         if instance_id is not UNSET:
             _input["instanceId"] = instance_id
         if title is not UNSET:
@@ -528,8 +529,8 @@ class LovekitApi:
         Returns:
             SoloBroadcast
         """
-        variables: dict[str, Any] = {}
-        _input: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
+        _input: dict[str, builtins.object] = {}
         if instance_id is not UNSET:
             _input["instanceId"] = instance_id
         if title is not UNSET:
@@ -557,8 +558,8 @@ class LovekitApi:
         Returns:
             str
         """
-        variables: dict[str, Any] = {}
-        _input: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
+        _input: dict[str, builtins.object] = {}
         if broadcast is not UNSET:
             _input["broadcast"] = broadcast
         _input["kind"] = kind
@@ -585,8 +586,8 @@ class LovekitApi:
         Returns:
             str
         """
-        variables: dict[str, Any] = {}
-        _input: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
+        _input: dict[str, builtins.object] = {}
         if broadcast is not UNSET:
             _input["broadcast"] = broadcast
         _input["kind"] = kind
@@ -608,7 +609,7 @@ class LovekitApi:
         Returns:
             CollaborativeBroadcast
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         variables["id"] = id
         return (
             await self.aexecute(GetCollaborativeBroadcastQuery, variables)
@@ -625,7 +626,7 @@ class LovekitApi:
         Returns:
             CollaborativeBroadcast
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         variables["id"] = id
         return self.execute(
             GetCollaborativeBroadcastQuery, variables
@@ -647,7 +648,7 @@ class LovekitApi:
         Returns:
             list[SearchollaborativeBroadcastsQueryCollaborativeBroadcasts]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if search is not UNSET:
             variables["search"] = search
         if values is not UNSET:
@@ -672,7 +673,7 @@ class LovekitApi:
         Returns:
             list[SearchollaborativeBroadcastsQueryCollaborativeBroadcasts]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if search is not UNSET:
             variables["search"] = search
         if values is not UNSET:
@@ -695,7 +696,7 @@ class LovekitApi:
         Returns:
             list[CollaborativeBroadcast]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if filter is not UNSET:
             variables["filter"] = filter
         if pagination is not UNSET:
@@ -720,7 +721,7 @@ class LovekitApi:
         Returns:
             list[CollaborativeBroadcast]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if filter is not UNSET:
             variables["filter"] = filter
         if pagination is not UNSET:
@@ -740,7 +741,7 @@ class LovekitApi:
         Returns:
             SoloBroadcast
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         variables["id"] = id
         return (await self.aexecute(GetSoloBroadcastQuery, variables)).solo_broadcast
 
@@ -755,7 +756,7 @@ class LovekitApi:
         Returns:
             SoloBroadcast
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         variables["id"] = id
         return self.execute(GetSoloBroadcastQuery, variables).solo_broadcast
 
@@ -775,7 +776,7 @@ class LovekitApi:
         Returns:
             list[SearchSoloBroadcastQuerySoloBroadcasts]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if search is not UNSET:
             variables["search"] = search
         if values is not UNSET:
@@ -798,7 +799,7 @@ class LovekitApi:
         Returns:
             list[SearchSoloBroadcastQuerySoloBroadcasts]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if search is not UNSET:
             variables["search"] = search
         if values is not UNSET:
@@ -821,7 +822,7 @@ class LovekitApi:
         Returns:
             list[SoloBroadcast]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if filter is not UNSET:
             variables["filter"] = filter
         if pagination is not UNSET:
@@ -844,7 +845,7 @@ class LovekitApi:
         Returns:
             list[SoloBroadcast]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if filter is not UNSET:
             variables["filter"] = filter
         if pagination is not UNSET:
@@ -862,7 +863,7 @@ class LovekitApi:
         Returns:
             Stream
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         variables["id"] = id
         return (await self.aexecute(GetStreamQuery, variables)).stream
 
@@ -877,7 +878,7 @@ class LovekitApi:
         Returns:
             Stream
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         variables["id"] = id
         return self.execute(GetStreamQuery, variables).stream
 
@@ -897,7 +898,7 @@ class LovekitApi:
         Returns:
             list[SearchStreamsQueryStreams]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if search is not UNSET:
             variables["search"] = search
         if values is not UNSET:
@@ -920,7 +921,7 @@ class LovekitApi:
         Returns:
             list[SearchStreamsQueryStreams]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if search is not UNSET:
             variables["search"] = search
         if values is not UNSET:
@@ -943,7 +944,7 @@ class LovekitApi:
         Returns:
             list[Stream]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if filter is not UNSET:
             variables["filter"] = filter
         if pagination is not UNSET:
@@ -966,7 +967,7 @@ class LovekitApi:
         Returns:
             list[Stream]
         """
-        variables: dict[str, Any] = {}
+        variables: dict[str, builtins.object] = {}
         if filter is not UNSET:
             variables["filter"] = filter
         if pagination is not UNSET:

@@ -11,6 +11,8 @@ dependencies = [
     "rath>=4",
     # The service and structures are declared with arkitekt-spec.
     "arkitekt-spec>=1.1.1",
+    # The GraphQL-WS link the client subscribes through; it came through rekuest before.
+    "websockets>=15.0.1",
     # The service wiring (Alias, Require, FaktsAuthLink); it came through rekuest before.
     "fakts>=4",
 ]

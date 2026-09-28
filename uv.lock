@@ -467,6 +467,22 @@ wheels = [
 ]
 
 [[package]]
+name = "fakts"
+version = "4.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "arkitekt-spec" },
+    { name = "certifi" },
+    { name = "koil" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/7b/ef57dcbb7b2166a3b818c7866990f48c442bf53be7ae288b46b5b36439c2/fakts-4.0.0.tar.gz", hash = "sha256:38ace22be9dd7518ebb79b1ff90558dedaa1569a39abd947c507c4b260c5db16", size = 74905, upload-time = "2026-09-28T19:15:40.211Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ad/ef/a844f7f90d1d51ab9c2a60d18b05f9fd1ed6a8302c360c9d06d0ea47868a/fakts-4.0.0-py3-none-any.whl", hash = "sha256:341bfe3df9876edf33da0e42ab98fdf54b03f63b301a4031140a665e6cd4435c", size = 90271, upload-time = "2026-09-28T19:15:38.965Z" },
+]
+
+[[package]]
 name = "fieldz"
 version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -702,6 +718,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "arkitekt-spec" },
+    { name = "fakts" },
     { name = "livekit" },
     { name = "rath" },
 ]
@@ -723,6 +740,7 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.5,<4" },
     { name = "arkitekt-spec", specifier = ">=1.1.1" },
+    { name = "fakts", specifier = ">=4" },
     { name = "livekit", specifier = ">=0.16.3" },
     { name = "rath", specifier = ">=4" },
 ]

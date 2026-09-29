@@ -3,6 +3,7 @@
 from collections.abc import AsyncGenerator, Generator
 from typing import Any
 
+from fakts import Alias
 from koil import unkoil, unkoil_gen
 from koil.composition import Composition
 from rath.origin import origin_context
@@ -25,6 +26,27 @@ class Lovekit(Composition, LovekitApi):
     """
 
     rath: LovekitRath
+    livekit: Alias | None = None
+    """The media server rooms are hosted on, as resolved: a mesh alias carries
+    the mesh node it is reached through."""
+
+    async def aroom_options(self) -> tuple[str, Any]:
+        """The url and ``livekit.rtc.RoomOptions`` to connect a room with
+        (see :func:`lovekit.livekit.aroom_options`)."""
+        from lovekit.livekit import aroom_options
+
+        if self.livekit is None:
+            raise RuntimeError("this lovekit client was built without the livekit alias")
+        return await aroom_options(self.livekit)
+
+    async def aconnect_room(self, token: str, room: Any = None) -> Any:
+        """Connect a ``livekit.rtc.Room`` (new by default) to the media server,
+        through the mesh when it is only reachable there."""
+        from lovekit.livekit import aconnect_room
+
+        if self.livekit is None:
+            raise RuntimeError("this lovekit client was built without the livekit alias")
+        return await aconnect_room(self.livekit, token, room)
 
     def _serialize(
         self, operation: type[TOperation], variables: dict[str, Any]

@@ -37,7 +37,7 @@ def lovekit(
         Alias,
         Require("live.arkitekt.lovekit", "Where rooms and their tokens are managed"),
     ],
-    livekit: Annotated[  # noqa: ARG001 -- declared, not dialled; see below
+    livekit: Annotated[
         Alias,
         Require("io.livekit.livekit", "The media server rooms are hosted on"),
     ],
@@ -45,18 +45,20 @@ def lovekit(
 ) -> Lovekit:
     """Lovekit: live audio and video rooms.
 
-    ``livekit`` is declared but never dialled from here: the media server is
-    reached by the livekit SDK with a token this service hands out, not over
-    GraphQL. It stays a requirement because a deployment still has to compose
-    one -- and now the manifest says so in the same place a client would.
+    ``livekit`` is not dialled from here: the media server is reached by the
+    livekit SDK with a token this service hands out, not over GraphQL. The
+    client keeps the resolved alias -- which, for a media server only on the
+    mesh, carries the mesh node it is reached through -- so
+    ``lovekit.aconnect_room(token)`` can connect a room either way.
     """
     return Lovekit(
+        livekit=livekit,
         rath=LovekitRath(
             link=LovekitLinkComposition(
                 auth=FaktsAuthLink(token_loader=tokens),
                 split=SplitLink(
-                    left=AIOHttpLink(endpoint_url=lovekit.to_http_path("graphql")),
-                    right=GraphQLWSLink(ws_endpoint_url=lovekit.to_ws_path("graphql")),
+                    left=AIOHttpLink(endpoint_url=lovekit.to_http_path("graphql"), proxy=lovekit.proxy),
+                    right=GraphQLWSLink(ws_endpoint_url=lovekit.to_ws_path("graphql"), proxy=lovekit.proxy),
                     split=lambda o: o.node.operation != OperationType.SUBSCRIPTION,
                 ),
             )

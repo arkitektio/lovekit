@@ -8,9 +8,9 @@ readme = "README.md"
 dependencies = [
     "aiohttp>=3.9.5,<4",
     "livekit>=0.16.3",
-    "rath>=4",
+    "rath>=4.1.1",
     # The service and structures are declared with arkitekt-spec.
-    "arkitekt-spec>=1.1.1",
+    "arkitekt-spec>=1.4",
     # The GraphQL-WS link the client subscribes through; it came through rekuest before.
     "websockets>=15.0.1",
     # The service wiring (Alias, Require, FaktsAuthLink); it came through rekuest before.

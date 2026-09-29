@@ -135,7 +135,8 @@ def test_operations_are_methods_not_module_functions() -> None:
     for name in ("aget_stream", "get_stream", "aensure_stream", "list_streams"):
         assert callable(getattr(Lovekit, name))
         assert not hasattr(schema, name), f"{name} is still a module-level function"
-    assert set(Lovekit.model_fields) == {"rath"}
+    # livekit: to connect rooms, also through the mesh (the alias carries its node).
+    assert set(Lovekit.model_fields) == {"rath", "livekit"}
 
 
 def test_there_is_no_ambient_lookup_module() -> None:

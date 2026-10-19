@@ -20,7 +20,7 @@ pip install lovekit   # or: pip install "arkitekt[rekuest,lovekit]"
 
 Every lovekit operation is a method of the `Lovekit` client, in a blocking and
 an `a`-prefixed async flavour: `declare_streams`, `publish_token`, `watch_stream`,
-`watch_agent`, `get_stream`, `list_streams`, `get_agent`, ….
+`watch_agent`, `get_stream`, `is_stream_live`, `list_streams`, `get_agent`, ….
 
 ### Publishing streams
 
@@ -88,7 +88,7 @@ Streams and agents travel between actions by id (`@lovekit/stream`,
 
 `watch_stream(stream)` and `watch_agent(agent)` return a token that may subscribe in
 the agent's room, but not publish; the stream is the track named by its `key`.
-`stream.live` says whether it is published right now.
+`is_stream_live(stream)` says whether it is published right now.
 
 ## Development
 

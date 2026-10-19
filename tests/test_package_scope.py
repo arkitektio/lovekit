@@ -71,7 +71,7 @@ def test_lovekit_imports_and_calls_through_a_client_with_arkitekt_unavailable() 
         "class R:\n"
         "    async def aquery(self, document, variables):\n"
         "        agent = {'id': 'a-1', 'roomName': 'agent-a-1', '__typename': 'Agent'}\n"
-        "        return NS(data={'stream': {'id': variables['id'], 'key': 'camera', 'title': 'Camera', 'kind': 'VIDEO', 'description': None, 'live': False, 'agent': agent, '__typename': 'Stream'}})\n"
+        "        return NS(data={'stream': {'id': variables['id'], 'key': 'camera', 'title': 'Camera', 'kind': 'VIDEO', 'description': None, 'agent': agent, '__typename': 'Stream'}})\n"
         "client = Lovekit.model_construct(rath=R())\n"
         "assert asyncio.run(client.aget_stream('s-1')).id == 's-1'\n"
         "print('ok')\n"

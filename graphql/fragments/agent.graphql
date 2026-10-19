@@ -8,4 +8,7 @@ fragment Agent on Agent {
   user {
     sub
   }
+  streams {
+    ...Stream
+  }
 }

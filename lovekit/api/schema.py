@@ -135,47 +135,6 @@ class WatchStreamInput(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
-class AgentClient(BaseModel):
-    """No documentation"""
-
-    typename: Literal["Client"] = Field(
-        alias="__typename", default="Client", exclude=True
-    )
-    client_id: str = Field(alias="clientId")
-    model_config = ConfigDict(frozen=True)
-
-
-class AgentUser(BaseModel):
-    """No documentation"""
-
-    typename: Literal["User"] = Field(alias="__typename", default="User", exclude=True)
-    sub: str
-    model_config = ConfigDict(frozen=True)
-
-
-class Agent(BaseModel):
-    """An app instance that owns live streams: one per client, user and organization"""
-
-    typename: Literal["Agent"] = Field(
-        alias="__typename", default="Agent", exclude=True
-    )
-    id: ID
-    name: str
-    "What the agent is called: its client's name, or its client id."
-    room_name: str = Field(alias="roomName")
-    "The LiveKit room the agent's streams are tracks in."
-    client: AgentClient
-    user: AgentUser
-    model_config = ConfigDict(frozen=True)
-
-    class Meta:
-        """Meta class for Agent"""
-
-        document = "fragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  __typename\n}"
-        name = "Agent"
-        type = "Agent"
-
-
 class StreamAgent(BaseModel):
     """An app instance that owns live streams: one per client, user and organization"""
 
@@ -209,6 +168,49 @@ class Stream(BaseModel):
         document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}"
         name = "Stream"
         type = "Stream"
+
+
+class AgentClient(BaseModel):
+    """No documentation"""
+
+    typename: Literal["Client"] = Field(
+        alias="__typename", default="Client", exclude=True
+    )
+    client_id: str = Field(alias="clientId")
+    model_config = ConfigDict(frozen=True)
+
+
+class AgentUser(BaseModel):
+    """No documentation"""
+
+    typename: Literal["User"] = Field(alias="__typename", default="User", exclude=True)
+    sub: str
+    model_config = ConfigDict(frozen=True)
+
+
+class Agent(BaseModel):
+    """An app instance that owns live streams: one per client, user and organization"""
+
+    typename: Literal["Agent"] = Field(
+        alias="__typename", default="Agent", exclude=True
+    )
+    id: ID
+    name: str
+    "What the agent is called: its client's name, or its client id."
+    room_name: str = Field(alias="roomName")
+    "The LiveKit room the agent's streams are tracks in."
+    client: AgentClient
+    user: AgentUser
+    streams: tuple[Stream, ...]
+    "Every stream the agent offers, as it declared them last"
+    model_config = ConfigDict(frozen=True)
+
+    class Meta:
+        """Meta class for Agent"""
+
+        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nfragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  streams {\n    ...Stream\n    __typename\n  }\n  __typename\n}"
+        name = "Agent"
+        type = "Agent"
 
 
 class DeclareStreamsMutation(BaseModel):
@@ -279,34 +281,10 @@ class WatchAgentMutation(BaseModel):
         document = "mutation WatchAgent($input: WatchAgentInput!) {\n  watchAgent(input: $input)\n}"
 
 
-class GetAgentQueryAgentStreams(Stream, BaseModel):
-    """One live source an agent offers: a camera, a detector, a microphone"""
-
-    typename: Literal["Stream"] = Field(
-        alias="__typename", default="Stream", exclude=True
-    )
-    live: bool
-    "Whether the agent publishes this stream right now: LiveKit's answer, asked when read."
-    model_config = ConfigDict(frozen=True)
-
-
-class GetAgentQueryAgent(Agent, BaseModel):
-    """An app instance that owns live streams: one per client, user and organization"""
-
-    typename: Literal["Agent"] = Field(
-        alias="__typename", default="Agent", exclude=True
-    )
-    live: bool
-    "Whether the agent publishes any of its streams right now."
-    streams: tuple[GetAgentQueryAgentStreams, ...]
-    "Every stream the agent offers, as it declared them last"
-    model_config = ConfigDict(frozen=True)
-
-
 class GetAgentQuery(BaseModel):
     """No documentation found for this operation."""
 
-    agent: GetAgentQueryAgent
+    agent: Agent
     "Get an agent by ID"
 
     class Arguments(BaseModel):
@@ -317,7 +295,7 @@ class GetAgentQuery(BaseModel):
     class Meta:
         """Meta class for GetAgent"""
 
-        document = "fragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery GetAgent($id: ID!) {\n  agent(id: $id) {\n    ...Agent\n    live\n    streams {\n      ...Stream\n      live\n      __typename\n    }\n    __typename\n  }\n}"
+        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nfragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  streams {\n    ...Stream\n    __typename\n  }\n  __typename\n}\n\nquery GetAgent($id: ID!) {\n  agent(id: $id) {\n    ...Agent\n    __typename\n  }\n}"
 
 
 class SearchAgentsQueryOptions(BaseModel):
@@ -350,21 +328,10 @@ class SearchAgentsQuery(BaseModel):
         document = "query SearchAgents($search: String, $values: [ID!]) {\n  options: agents(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}"
 
 
-class GetStreamQueryStream(Stream, BaseModel):
-    """One live source an agent offers: a camera, a detector, a microphone"""
-
-    typename: Literal["Stream"] = Field(
-        alias="__typename", default="Stream", exclude=True
-    )
-    live: bool
-    "Whether the agent publishes this stream right now: LiveKit's answer, asked when read."
-    model_config = ConfigDict(frozen=True)
-
-
 class GetStreamQuery(BaseModel):
     """No documentation found for this operation."""
 
-    stream: GetStreamQueryStream
+    stream: Stream
     "Get a stream by ID"
 
     class Arguments(BaseModel):
@@ -375,7 +342,35 @@ class GetStreamQuery(BaseModel):
     class Meta:
         """Meta class for GetStream"""
 
-        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery GetStream($id: ID!) {\n  stream(id: $id) {\n    ...Stream\n    live\n    __typename\n  }\n}"
+        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery GetStream($id: ID!) {\n  stream(id: $id) {\n    ...Stream\n    __typename\n  }\n}"
+
+
+class IsStreamLiveQueryStream(BaseModel):
+    """One live source an agent offers: a camera, a detector, a microphone"""
+
+    typename: Literal["Stream"] = Field(
+        alias="__typename", default="Stream", exclude=True
+    )
+    live: bool
+    "Whether the agent publishes this stream right now: LiveKit's answer, asked when read."
+    model_config = ConfigDict(frozen=True)
+
+
+class IsStreamLiveQuery(BaseModel):
+    """No documentation found for this operation."""
+
+    stream: IsStreamLiveQueryStream
+    "Get a stream by ID"
+
+    class Arguments(BaseModel):
+        """Arguments for IsStreamLive"""
+
+        id: ID
+
+    class Meta:
+        """Meta class for IsStreamLive"""
+
+        document = "query IsStreamLive($id: ID!) {\n  stream(id: $id) {\n    live\n    __typename\n  }\n}"
 
 
 class SearchStreamsQueryOptions(BaseModel):
@@ -407,21 +402,10 @@ class SearchStreamsQuery(BaseModel):
         document = "query SearchStreams($search: String, $values: [ID!]) {\n  options: streams(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: title\n    __typename\n  }\n}"
 
 
-class ListStreamsQueryStreams(Stream, BaseModel):
-    """One live source an agent offers: a camera, a detector, a microphone"""
-
-    typename: Literal["Stream"] = Field(
-        alias="__typename", default="Stream", exclude=True
-    )
-    live: bool
-    "Whether the agent publishes this stream right now: LiveKit's answer, asked when read."
-    model_config = ConfigDict(frozen=True)
-
-
 class ListStreamsQuery(BaseModel):
     """No documentation found for this operation."""
 
-    streams: tuple[ListStreamsQueryStreams, ...]
+    streams: tuple[Stream, ...]
     "The streams of the organization's agents; filter `live` for the ones being published"
 
     class Arguments(BaseModel):
@@ -433,7 +417,7 @@ class ListStreamsQuery(BaseModel):
     class Meta:
         """Meta class for ListStreams"""
 
-        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {\n  streams(filters: $filter, pagination: $pagination) {\n    ...Stream\n    live\n    __typename\n  }\n}"
+        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {\n  streams(filters: $filter, pagination: $pagination) {\n    ...Stream\n    __typename\n  }\n}"
 
 
 class LovekitApi:
@@ -574,7 +558,7 @@ class LovekitApi:
         variables["input"] = _input
         return self.execute(WatchAgentMutation, variables).watch_agent
 
-    async def aget_agent(self, id: IDCoercible) -> GetAgentQueryAgent:
+    async def aget_agent(self, id: IDCoercible) -> Agent:
         """GetAgent
 
         Get an agent by ID
@@ -583,13 +567,13 @@ class LovekitApi:
             id (ID): No description
 
         Returns:
-            GetAgentQueryAgent
+            Agent
         """
         variables: dict[str, builtins.object] = {}
         variables["id"] = id
         return (await self.aexecute(GetAgentQuery, variables)).agent
 
-    def get_agent(self, id: IDCoercible) -> GetAgentQueryAgent:
+    def get_agent(self, id: IDCoercible) -> Agent:
         """GetAgent
 
         Get an agent by ID
@@ -598,7 +582,7 @@ class LovekitApi:
             id (ID): No description
 
         Returns:
-            GetAgentQueryAgent
+            Agent
         """
         variables: dict[str, builtins.object] = {}
         variables["id"] = id
@@ -650,7 +634,7 @@ class LovekitApi:
             variables["values"] = values
         return self.execute(SearchAgentsQuery, variables).options
 
-    async def aget_stream(self, id: IDCoercible) -> GetStreamQueryStream:
+    async def aget_stream(self, id: IDCoercible) -> Stream:
         """GetStream
 
         Get a stream by ID
@@ -659,13 +643,13 @@ class LovekitApi:
             id (ID): No description
 
         Returns:
-            GetStreamQueryStream
+            Stream
         """
         variables: dict[str, builtins.object] = {}
         variables["id"] = id
         return (await self.aexecute(GetStreamQuery, variables)).stream
 
-    def get_stream(self, id: IDCoercible) -> GetStreamQueryStream:
+    def get_stream(self, id: IDCoercible) -> Stream:
         """GetStream
 
         Get a stream by ID
@@ -674,11 +658,41 @@ class LovekitApi:
             id (ID): No description
 
         Returns:
-            GetStreamQueryStream
+            Stream
         """
         variables: dict[str, builtins.object] = {}
         variables["id"] = id
         return self.execute(GetStreamQuery, variables).stream
+
+    async def ais_stream_live(self, id: IDCoercible) -> IsStreamLiveQueryStream:
+        """IsStreamLive
+
+        Get a stream by ID
+
+        Args:
+            id (ID): No description
+
+        Returns:
+            IsStreamLiveQueryStream
+        """
+        variables: dict[str, builtins.object] = {}
+        variables["id"] = id
+        return (await self.aexecute(IsStreamLiveQuery, variables)).stream
+
+    def is_stream_live(self, id: IDCoercible) -> IsStreamLiveQueryStream:
+        """IsStreamLive
+
+        Get a stream by ID
+
+        Args:
+            id (ID): No description
+
+        Returns:
+            IsStreamLiveQueryStream
+        """
+        variables: dict[str, builtins.object] = {}
+        variables["id"] = id
+        return self.execute(IsStreamLiveQuery, variables).stream
 
     async def asearch_streams(
         self,
@@ -730,7 +744,7 @@ class LovekitApi:
         self,
         filter: StreamFilter | None | UnsetType = UNSET,
         pagination: OffsetPaginationInput | None | UnsetType = UNSET,
-    ) -> tuple[ListStreamsQueryStreams, ...]:
+    ) -> tuple[Stream, ...]:
         """ListStreams
 
         The streams of the organization's agents; filter `live` for the ones being published
@@ -740,7 +754,7 @@ class LovekitApi:
             pagination (OffsetPaginationInput | None, optional): No description.
 
         Returns:
-            list[ListStreamsQueryStreams]
+            list[Stream]
         """
         variables: dict[str, builtins.object] = {}
         if filter is not UNSET:
@@ -753,7 +767,7 @@ class LovekitApi:
         self,
         filter: StreamFilter | None | UnsetType = UNSET,
         pagination: OffsetPaginationInput | None | UnsetType = UNSET,
-    ) -> tuple[ListStreamsQueryStreams, ...]:
+    ) -> tuple[Stream, ...]:
         """ListStreams
 
         The streams of the organization's agents; filter `live` for the ones being published
@@ -763,7 +777,7 @@ class LovekitApi:
             pagination (OffsetPaginationInput | None, optional): No description.
 
         Returns:
-            list[ListStreamsQueryStreams]
+            list[Stream]
         """
         variables: dict[str, builtins.object] = {}
         if filter is not UNSET:

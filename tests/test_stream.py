@@ -43,7 +43,7 @@ def _livekit(agent: Lovekit) -> api.LiveKitAPI:
 
 
 async def _live(lovekit: Lovekit, stream_id: str) -> bool:
-    return (await lovekit.aget_stream(stream_id)).live
+    return (await lovekit.ais_stream_live(stream_id)).live
 
 
 async def _joins(live) -> int:
@@ -53,7 +53,10 @@ async def _joins(live) -> int:
 async def test_declaring_without_publishing_offers_the_streams(lovekit: Lovekit) -> None:
     streams = await lovekit.adeclare_streams([StreamDeclarationInput(key="idle", title="Idle", kind=StreamKind.VIDEO)])
     assert [(s.key, s.title, s.kind) for s in streams] == [("idle", "Idle", StreamKind.VIDEO)]
-    assert (await lovekit.aget_stream(streams[0].id)).live is False
+    assert (await lovekit.ais_stream_live(streams[0].id)).live is False
+    assert (await lovekit.aget_stream(streams[0].id)) == streams[0]
+    agent = await lovekit.aget_agent(streams[0].agent.id)
+    assert [s.key for s in agent.streams] == ["idle"]
     assert isinstance(await lovekit.apublish_token(), str)
 
 

@@ -1,11 +1,6 @@
 query GetAgent($id: ID!) {
   agent(id: $id) {
     ...Agent
-    live
-    streams {
-      ...Stream
-      live
-    }
   }
 }
 

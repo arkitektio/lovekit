@@ -1,6 +1,11 @@
 query GetStream($id: ID!) {
   stream(id: $id) {
     ...Stream
+  }
+}
+
+query IsStreamLive($id: ID!) {
+  stream(id: $id) {
     live
   }
 }
@@ -18,6 +23,5 @@ query SearchStreams($search: String, $values: [ID!]) {
 query ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {
   streams(filters: $filter, pagination: $pagination) {
     ...Stream
-    live
   }
 }

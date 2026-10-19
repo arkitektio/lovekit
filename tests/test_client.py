@@ -33,7 +33,6 @@ class FakeRath:
                     "title": "Camera",
                     "kind": "VIDEO",
                     "description": None,
-                    "live": False,
                     "agent": {"id": "a-1", "roomName": "agent-a-1", "__typename": "Agent"},
                 }
             }

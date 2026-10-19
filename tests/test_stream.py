@@ -151,6 +151,17 @@ async def test_an_agent_publishes_once_at_a_time(agent: Lovekit) -> None:
         pass
 
 
+async def test_a_refused_declaration_raises_and_frees_the_client(agent: Lovekit) -> None:
+    from rath.operation import GraphQLException
+
+    with pytest.raises(GraphQLException):
+        async with agent.publish([VideoStream(" ")]):
+            pass
+    # Nothing holds the client: it publishes what lovekit accepts.
+    async with agent.publish([VideoStream("camera")]) as live:
+        assert [s.key for s in live.streams] == ["camera"]
+
+
 async def test_a_key_is_declared_once(agent: Lovekit) -> None:
     with pytest.raises(ValueError):
         agent.publish([VideoStream("camera"), AudioStream("camera")])

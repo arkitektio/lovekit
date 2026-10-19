@@ -20,6 +20,8 @@ as the agent's one participant. The connection is kept:
   reconnect, sees a picture.
 - When the room drops (network, server restart, the room closing) a fresh token is taken and
   the room joined again, with backoff, and every track is published again with its last frame.
+  While lovekit cannot be reached (an app that boots before it), the declaration is tried
+  again the same way; what lovekit refuses (a blank key) raises.
 - When another process of the same agent connects (``DUPLICATE_IDENTITY``), or an operator
   removes the participant (``PARTICIPANT_REMOVED``), this one stops for good: two processes of
   one agent would otherwise take the room from each other forever. :attr:`LiveStreams.stopped`
@@ -37,6 +39,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from livekit import rtc
+from rath.operation import GraphQLException
 
 from lovekit.api.schema import Stream, StreamDeclarationInput, StreamKind
 
@@ -305,6 +308,20 @@ class LiveStreams:
         """The room while it is joined."""
         return self._room
 
+    async def _declare_until_answered(self) -> None:
+        """Declare, again and again while lovekit cannot be reached; what it refuses raises."""
+        backoff = 1.0
+        while True:
+            try:
+                await self._declare()
+                return
+            except (GraphQLException, asyncio.CancelledError):
+                raise
+            except Exception as error:  # lovekit is not there (yet)
+                logger.warning("Could not declare %s, again in %.0f s: %s", ", ".join(self._tracks), backoff, error)
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, MAX_BACKOFF)
+
     async def _declare(self) -> None:
         self.streams = await self._lovekit.adeclare_streams(
             [
@@ -348,8 +365,15 @@ class LiveStreams:
             except asyncio.CancelledError:
                 raise
             except Exception as error:  # a token, a join that failed: try again, later
-                logger.warning("Could not join the room of %s, again in %.0f s: %s", self._lovekit.__class__.__name__, backoff, error)
+                logger.warning("Could not join the room of %s, again in %.0f s: %s", ", ".join(self._tracks), backoff, error)
                 await asyncio.sleep(backoff)
+                if isinstance(error, GraphQLException):
+                    # lovekit answered, but knows no agent of ours (its database was reset):
+                    # declared again, there is one, with the same streams.
+                    try:
+                        await self._declare()
+                    except Exception as again:  # it is tried once more on the next round
+                        logger.debug("Declaring again failed: %s", again)
                 backoff = min(backoff * 2, MAX_BACKOFF)
                 continue
             backoff = 1.0
@@ -372,7 +396,13 @@ class LiveStreams:
             self.stopped.set()
 
     async def __aenter__(self) -> LiveStreams:
-        await self._declare()
+        try:
+            await self._declare_until_answered()
+        except BaseException:
+            # Never entered, so never exited: the client may publish again.
+            self._stop("not declared")
+            self._lovekit._release_publisher(self)
+            raise
         self._tasks = [asyncio.create_task(self._run()), asyncio.create_task(self._resend())]
         return self
 

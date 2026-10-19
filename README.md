@@ -50,7 +50,9 @@ async with lovekit.publish([VideoStream("camera", title="Main camera")]) as live
 ### In an arkitekt app
 
 The client is injected by annotation. Hold the streams in a state, so the UI
-shows them, and publish from a background hook:
+shows them (in a blok: `<foreach items="@self.Live.streams" let="#stream">`
+`<StructureDisplay value="@stream" /></foreach>`), and publish from a background
+hook:
 
 ```python
 from dataclasses import dataclass, field
@@ -67,6 +69,12 @@ app = App("camera", "0.1.0", services=[lovekit_service])
 @dataclass
 class Live:
     streams: list[Stream] = field(default_factory=list)
+
+
+@app.startup
+def no_streams_yet() -> Live:
+    """Every state starts from a startup hook: empty, until the streams are declared."""
+    return Live()
 
 
 @app.background

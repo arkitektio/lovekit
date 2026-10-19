@@ -10,11 +10,22 @@ services:
       POSTGRES_USER: hello_django
   livekit:
     image: livekit/livekit-server:latest
-    command: --dev
+    command: --dev --bind 0.0.0.0
     environment:
       LIVEKIT_KEYS: "devkey: devsecret_devsecret_devsecret_devsecret"
+      # Media over one TCP and one UDP port, published as the same numbers and announced
+      # as 127.0.0.1, so a test on the host publishes real tracks (ICE needs the candidate
+      # port to be the host port).
+      LIVEKIT_CONFIG: |
+        rtc:
+          tcp_port: ${LIVEKIT_TCP_PORT:-7881}
+          udp_port: ${LIVEKIT_UDP_PORT:-7882}
+          node_ip: 127.0.0.1
+          use_external_ip: false
     ports:
-      - 5678:7880
+      - "${LIVEKIT_HOST_PORT:-5678}:7880"
+      - "${LIVEKIT_TCP_PORT:-7881}:${LIVEKIT_TCP_PORT:-7881}"
+      - "${LIVEKIT_UDP_PORT:-7882}:${LIVEKIT_UDP_PORT:-7882}/udp"
   # Brings the database to the image's release, once, before the server is started: a
   # service's own start only serves.
   lovekit-migrate:

@@ -2,7 +2,7 @@ import builtins
 from enum import Enum
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from rath.scalars import ID, IDCoercible
-from typing import Annotated, Literal
+from typing import Annotated, Iterable, Literal
 
 
 class GraphQLDefault:
@@ -36,60 +36,17 @@ UNSET = UnsetType()
 
 
 class StreamKind(str, Enum):
-    """The state of a dask cluster"""
+    """What a stream carries"""
 
     VIDEO = "VIDEO"
     AUDIO = "AUDIO"
     __str__ = str.__str__
 
 
-class CollaborativeBroadcastFilter(BaseModel):
-    """Filter for Solo Broadcasts"""
+class DeclareStreamsInput(BaseModel):
+    """Every stream an agent offers"""
 
-    ids: tuple[ID, ...] | None = None
-    search: str | None = None
-    and_: "CollaborativeBroadcastFilter | None" = Field(
-        validation_alias=AliasChoices("and_", "AND"),
-        serialization_alias="AND",
-        default=None,
-    )
-    or_: "CollaborativeBroadcastFilter | None" = Field(
-        validation_alias=AliasChoices("or_", "OR"),
-        serialization_alias="OR",
-        default=None,
-    )
-    not_: "CollaborativeBroadcastFilter | None" = Field(
-        validation_alias=AliasChoices("not_", "NOT"),
-        serialization_alias="NOT",
-        default=None,
-    )
-    distinct: bool | None = Field(
-        validation_alias=AliasChoices("distinct", "DISTINCT"),
-        serialization_alias="DISTINCT",
-        default=None,
-    )
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class EnsureSoloBroadcastInput(BaseModel):
-    """No documentation"""
-
-    instance_id: str | None = Field(
-        validation_alias=AliasChoices("instance_id", "instanceId"),
-        serialization_alias="instanceId",
-        default=None,
-    )
-    title: str | None = None
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-
-class EnsureStreamInput(BaseModel):
-    """No documentation"""
-
-    broadcast: ID | None = None
-    kind: Annotated[StreamKind | None, GraphQLDefault("VIDEO")] = None
-    "Default: VIDEO"
-    title: str | None = None
+    streams: tuple["StreamDeclarationInput", ...]
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
@@ -102,39 +59,26 @@ class OffsetPaginationInput(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
-class SoloBroadcastFilter(BaseModel):
-    """Filter for Solo Broadcasts"""
+class StreamDeclarationInput(BaseModel):
+    """One stream an agent offers"""
 
-    ids: tuple[ID, ...] | None = None
-    search: str | None = None
-    and_: "SoloBroadcastFilter | None" = Field(
-        validation_alias=AliasChoices("and_", "AND"),
-        serialization_alias="AND",
-        default=None,
+    key: str = Field(
+        description="The agent's own name for the stream, the same on every start; its LiveKit track is published under this name"
     )
-    or_: "SoloBroadcastFilter | None" = Field(
-        validation_alias=AliasChoices("or_", "OR"),
-        serialization_alias="OR",
-        default=None,
+    title: str | None = Field(
+        default=None, description="What the stream is called; the key when not given"
     )
-    not_: "SoloBroadcastFilter | None" = Field(
-        validation_alias=AliasChoices("not_", "NOT"),
-        serialization_alias="NOT",
-        default=None,
+    kind: Annotated[StreamKind | None, GraphQLDefault("VIDEO")] = Field(
+        default=None, description="Whether it is video or audio"
     )
-    distinct: bool | None = Field(
-        validation_alias=AliasChoices("distinct", "DISTINCT"),
-        serialization_alias="DISTINCT",
-        default=None,
-    )
+    "Whether it is video or audio\nDefault: VIDEO"
+    description: str | None = Field(default=None, description="What the stream shows")
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 class StreamFilter(BaseModel):
-    """Filter for Streams"""
+    """Filter for streams"""
 
-    ids: tuple[ID, ...] | None = None
-    search: str | None = None
     and_: "StreamFilter | None" = Field(
         validation_alias=AliasChoices("and_", "AND"),
         serialization_alias="AND",
@@ -155,35 +99,43 @@ class StreamFilter(BaseModel):
         serialization_alias="DISTINCT",
         default=None,
     )
+    ids: tuple[ID, ...] | None = None
+    search: str | None = None
+    agent: ID | None = Field(default=None, description="Streams of this agent.")
+    client_id: str | None = Field(
+        validation_alias=AliasChoices("client_id", "clientId"),
+        serialization_alias="clientId",
+        default=None,
+        description="Streams of the agent running as this client (its OAuth client id), as rekuest knows it too.",
+    )
+    user_sub: str | None = Field(
+        validation_alias=AliasChoices("user_sub", "userSub"),
+        serialization_alias="userSub",
+        default=None,
+        description="Streams of agents running for this user (the `sub` their token carries).",
+    )
+    live: bool | None = Field(
+        default=None,
+        description="Only streams their agent publishes right now (true), or does not (false).",
+    )
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
-class Stream(BaseModel):
-    """No documentation"""
+class WatchAgentInput(BaseModel):
+    """The agent whose streams to watch"""
 
-    typename: Literal["Stream"] = Field(
-        alias="__typename", default="Stream", exclude=True
-    )
-    id: ID
-    model_config = ConfigDict(frozen=True)
-
-    class Meta:
-        """Meta class for Stream"""
-
-        document = "fragment Stream on Stream {\n  id\n  __typename\n}"
-        name = "Stream"
-        type = "Stream"
+    agent: ID
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
-class StreamerUser(BaseModel):
-    """No documentation"""
+class WatchStreamInput(BaseModel):
+    """The stream to watch"""
 
-    typename: Literal["User"] = Field(alias="__typename", default="User", exclude=True)
-    sub: str
-    model_config = ConfigDict(frozen=True)
+    stream: ID
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
-class StreamerClient(BaseModel):
+class AgentClient(BaseModel):
     """No documentation"""
 
     typename: Literal["Client"] = Field(
@@ -193,233 +145,226 @@ class StreamerClient(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-class Streamer(BaseModel):
+class AgentUser(BaseModel):
     """No documentation"""
 
-    typename: Literal["Streamer"] = Field(
-        alias="__typename", default="Streamer", exclude=True
-    )
-    user: StreamerUser
-    client: StreamerClient
+    typename: Literal["User"] = Field(alias="__typename", default="User", exclude=True)
+    sub: str
     model_config = ConfigDict(frozen=True)
 
-    class Meta:
-        """Meta class for Streamer"""
 
-        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}"
-        name = "Streamer"
-        type = "Streamer"
+class Agent(BaseModel):
+    """An app instance that owns live streams: one per client, user and organization"""
 
-
-class SoloBroadcast(BaseModel):
-    """No documentation"""
-
-    typename: Literal["SoloBroadcast"] = Field(
-        alias="__typename", default="SoloBroadcast", exclude=True
+    typename: Literal["Agent"] = Field(
+        alias="__typename", default="Agent", exclude=True
     )
     id: ID
-    title: str
-    streamer: Streamer
+    name: str
+    "What the agent is called: its client's name, or its client id."
+    room_name: str = Field(alias="roomName")
+    "The LiveKit room the agent's streams are tracks in."
+    client: AgentClient
+    user: AgentUser
     model_config = ConfigDict(frozen=True)
 
     class Meta:
-        """Meta class for SoloBroadcast"""
+        """Meta class for Agent"""
 
-        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment SoloBroadcast on SoloBroadcast {\n  id\n  title\n  streamer {\n    ...Streamer\n    __typename\n  }\n  __typename\n}"
-        name = "SoloBroadcast"
-        type = "SoloBroadcast"
+        document = "fragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  __typename\n}"
+        name = "Agent"
+        type = "Agent"
 
 
-class CollaborativeBroadcast(BaseModel):
-    """No documentation"""
+class StreamAgent(BaseModel):
+    """An app instance that owns live streams: one per client, user and organization"""
 
-    typename: Literal["CollaborativeBroadcast"] = Field(
-        alias="__typename", default="CollaborativeBroadcast", exclude=True
+    typename: Literal["Agent"] = Field(
+        alias="__typename", default="Agent", exclude=True
     )
     id: ID
+    room_name: str = Field(alias="roomName")
+    "The LiveKit room the agent's streams are tracks in."
+    model_config = ConfigDict(frozen=True)
+
+
+class Stream(BaseModel):
+    """One live source an agent offers: a camera, a detector, a microphone"""
+
+    typename: Literal["Stream"] = Field(
+        alias="__typename", default="Stream", exclude=True
+    )
+    id: ID
+    key: str
+    "The agent's name for the stream, the same across its restarts: the name of the LiveKit track it is published as"
     title: str
-    streamers: tuple[Streamer, ...]
-    "The streamers that are collaborating on this broadcast."
+    kind: StreamKind
+    description: str | None = Field(default=None)
+    agent: StreamAgent
     model_config = ConfigDict(frozen=True)
 
     class Meta:
-        """Meta class for CollaborativeBroadcast"""
+        """Meta class for Stream"""
 
-        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment CollaborativeBroadcast on CollaborativeBroadcast {\n  id\n  title\n  streamers {\n    ...Streamer\n    __typename\n  }\n  __typename\n}"
-        name = "CollaborativeBroadcast"
-        type = "CollaborativeBroadcast"
+        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}"
+        name = "Stream"
+        type = "Stream"
 
 
-class EnsureSoloBroadcastMutation(BaseModel):
+class DeclareStreamsMutation(BaseModel):
     """No documentation found for this operation."""
 
-    ensure_solo_broadcast: SoloBroadcast = Field(alias="ensureSoloBroadcast")
-    "Create a solo broadcast"
+    declare_streams: tuple[Stream, ...] = Field(alias="declareStreams")
+    "Offer exactly these streams as the caller's agent: undeclared ones are removed, unchanged ones untouched"
 
     class Arguments(BaseModel):
-        """Arguments for EnsureSoloBroadcast"""
+        """Arguments for DeclareStreams"""
 
-        input: EnsureSoloBroadcastInput
+        input: DeclareStreamsInput
 
     class Meta:
-        """Meta class for EnsureSoloBroadcast"""
+        """Meta class for DeclareStreams"""
 
-        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment SoloBroadcast on SoloBroadcast {\n  id\n  title\n  streamer {\n    ...Streamer\n    __typename\n  }\n  __typename\n}\n\nmutation EnsureSoloBroadcast($input: EnsureSoloBroadcastInput!) {\n  ensureSoloBroadcast(input: $input) {\n    ...SoloBroadcast\n    __typename\n  }\n}"
+        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nmutation DeclareStreams($input: DeclareStreamsInput!) {\n  declareStreams(input: $input) {\n    ...Stream\n    __typename\n  }\n}"
 
 
-class EnsureStreamMutation(BaseModel):
+class PublishTokenMutation(BaseModel):
     """No documentation found for this operation."""
 
-    ensure_stream: str = Field(alias="ensureStream")
-    "Create a stream and return the token for it"
+    publish_token: str = Field(alias="publishToken")
+    "A token for the caller's agent to publish its streams; a newer connection replaces an older one"
 
     class Arguments(BaseModel):
-        """Arguments for EnsureStream"""
+        """Arguments for PublishToken"""
 
-        input: EnsureStreamInput
+        pass
 
     class Meta:
-        """Meta class for EnsureStream"""
+        """Meta class for PublishToken"""
 
-        document = "mutation EnsureStream($input: EnsureStreamInput!) {\n  ensureStream(input: $input)\n}"
+        document = "mutation PublishToken {\n  publishToken\n}"
 
 
-class GetCollaborativeBroadcastQuery(BaseModel):
+class WatchStreamMutation(BaseModel):
     """No documentation found for this operation."""
 
-    collaborative_broadcast: CollaborativeBroadcast = Field(
-        alias="collaborativeBroadcast"
+    watch_stream: str = Field(alias="watchStream")
+    "A token to watch a stream: its agent's room, where it is the track named by its key"
+
+    class Arguments(BaseModel):
+        """Arguments for WatchStream"""
+
+        input: WatchStreamInput
+
+    class Meta:
+        """Meta class for WatchStream"""
+
+        document = "mutation WatchStream($input: WatchStreamInput!) {\n  watchStream(input: $input)\n}"
+
+
+class WatchAgentMutation(BaseModel):
+    """No documentation found for this operation."""
+
+    watch_agent: str = Field(alias="watchAgent")
+    "A token to watch every stream of an agent"
+
+    class Arguments(BaseModel):
+        """Arguments for WatchAgent"""
+
+        input: WatchAgentInput
+
+    class Meta:
+        """Meta class for WatchAgent"""
+
+        document = "mutation WatchAgent($input: WatchAgentInput!) {\n  watchAgent(input: $input)\n}"
+
+
+class GetAgentQueryAgentStreams(Stream, BaseModel):
+    """One live source an agent offers: a camera, a detector, a microphone"""
+
+    typename: Literal["Stream"] = Field(
+        alias="__typename", default="Stream", exclude=True
     )
-    "Get a collaborative broadcast by ID"
+    live: bool
+    "Whether the agent publishes this stream right now: LiveKit's answer, asked when read."
+    model_config = ConfigDict(frozen=True)
+
+
+class GetAgentQueryAgent(Agent, BaseModel):
+    """An app instance that owns live streams: one per client, user and organization"""
+
+    typename: Literal["Agent"] = Field(
+        alias="__typename", default="Agent", exclude=True
+    )
+    live: bool
+    "Whether the agent publishes any of its streams right now."
+    streams: tuple[GetAgentQueryAgentStreams, ...]
+    "Every stream the agent offers, as it declared them last"
+    model_config = ConfigDict(frozen=True)
+
+
+class GetAgentQuery(BaseModel):
+    """No documentation found for this operation."""
+
+    agent: GetAgentQueryAgent
+    "Get an agent by ID"
 
     class Arguments(BaseModel):
-        """Arguments for GetCollaborativeBroadcast"""
+        """Arguments for GetAgent"""
 
         id: ID
 
     class Meta:
-        """Meta class for GetCollaborativeBroadcast"""
+        """Meta class for GetAgent"""
 
-        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment CollaborativeBroadcast on CollaborativeBroadcast {\n  id\n  title\n  streamers {\n    ...Streamer\n    __typename\n  }\n  __typename\n}\n\nquery GetCollaborativeBroadcast($id: ID!) {\n  collaborativeBroadcast(id: $id) {\n    ...CollaborativeBroadcast\n    __typename\n  }\n}"
+        document = "fragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery GetAgent($id: ID!) {\n  agent(id: $id) {\n    ...Agent\n    live\n    streams {\n      ...Stream\n      live\n      __typename\n    }\n    __typename\n  }\n}"
 
 
-class SearchollaborativeBroadcastsQueryOptions(BaseModel):
-    """No documentation"""
+class SearchAgentsQueryOptions(BaseModel):
+    """An app instance that owns live streams: one per client, user and organization"""
 
-    typename: Literal["CollaborativeBroadcast"] = Field(
-        alias="__typename", default="CollaborativeBroadcast", exclude=True
+    typename: Literal["Agent"] = Field(
+        alias="__typename", default="Agent", exclude=True
     )
     value: ID
     label: str
+    "What the agent is called: its client's name, or its client id."
     model_config = ConfigDict(frozen=True)
 
 
-class SearchollaborativeBroadcastsQuery(BaseModel):
+class SearchAgentsQuery(BaseModel):
     """No documentation found for this operation."""
 
-    options: tuple[SearchollaborativeBroadcastsQueryOptions, ...]
-    "Get all collaborative broadcasts"
+    options: tuple[SearchAgentsQueryOptions, ...]
+    "The organization's agents that offer streams"
 
     class Arguments(BaseModel):
-        """Arguments for SearchollaborativeBroadcasts"""
+        """Arguments for SearchAgents"""
 
         search: str | None = Field(default=None)
         values: list[ID] | None = Field(default=None)
 
     class Meta:
-        """Meta class for SearchollaborativeBroadcasts"""
+        """Meta class for SearchAgents"""
 
-        document = "query SearchollaborativeBroadcasts($search: String, $values: [ID!]) {\n  options: collaborativeBroadcasts(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: title\n    __typename\n  }\n}"
+        document = "query SearchAgents($search: String, $values: [ID!]) {\n  options: agents(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: name\n    __typename\n  }\n}"
 
 
-class ListCollaborativeBroadcastsQuery(BaseModel):
-    """No documentation found for this operation."""
+class GetStreamQueryStream(Stream, BaseModel):
+    """One live source an agent offers: a camera, a detector, a microphone"""
 
-    collaborative_broadcasts: tuple[CollaborativeBroadcast, ...] = Field(
-        alias="collaborativeBroadcasts"
+    typename: Literal["Stream"] = Field(
+        alias="__typename", default="Stream", exclude=True
     )
-    "Get all collaborative broadcasts"
-
-    class Arguments(BaseModel):
-        """Arguments for ListCollaborativeBroadcasts"""
-
-        filter: CollaborativeBroadcastFilter | None = Field(default=None)
-        pagination: OffsetPaginationInput | None = Field(default=None)
-
-    class Meta:
-        """Meta class for ListCollaborativeBroadcasts"""
-
-        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment CollaborativeBroadcast on CollaborativeBroadcast {\n  id\n  title\n  streamers {\n    ...Streamer\n    __typename\n  }\n  __typename\n}\n\nquery ListCollaborativeBroadcasts($filter: CollaborativeBroadcastFilter, $pagination: OffsetPaginationInput) {\n  collaborativeBroadcasts(filters: $filter, pagination: $pagination) {\n    ...CollaborativeBroadcast\n    __typename\n  }\n}"
-
-
-class GetSoloBroadcastQuery(BaseModel):
-    """No documentation found for this operation."""
-
-    solo_broadcast: SoloBroadcast = Field(alias="soloBroadcast")
-    "Get a solo broadcast by ID"
-
-    class Arguments(BaseModel):
-        """Arguments for GetSoloBroadcast"""
-
-        id: ID
-
-    class Meta:
-        """Meta class for GetSoloBroadcast"""
-
-        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment SoloBroadcast on SoloBroadcast {\n  id\n  title\n  streamer {\n    ...Streamer\n    __typename\n  }\n  __typename\n}\n\nquery GetSoloBroadcast($id: ID!) {\n  soloBroadcast(id: $id) {\n    ...SoloBroadcast\n    __typename\n  }\n}"
-
-
-class SearchSoloBroadcastQueryOptions(BaseModel):
-    """No documentation"""
-
-    typename: Literal["SoloBroadcast"] = Field(
-        alias="__typename", default="SoloBroadcast", exclude=True
-    )
-    value: ID
-    label: str
+    live: bool
+    "Whether the agent publishes this stream right now: LiveKit's answer, asked when read."
     model_config = ConfigDict(frozen=True)
-
-
-class SearchSoloBroadcastQuery(BaseModel):
-    """No documentation found for this operation."""
-
-    options: tuple[SearchSoloBroadcastQueryOptions, ...]
-    "Get all solo broadcasts"
-
-    class Arguments(BaseModel):
-        """Arguments for SearchSoloBroadcast"""
-
-        search: str | None = Field(default=None)
-        values: list[ID] | None = Field(default=None)
-
-    class Meta:
-        """Meta class for SearchSoloBroadcast"""
-
-        document = "query SearchSoloBroadcast($search: String, $values: [ID!]) {\n  options: soloBroadcasts(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: title\n    __typename\n  }\n}"
-
-
-class ListSoloBroadcastsQuery(BaseModel):
-    """No documentation found for this operation."""
-
-    solo_broadcasts: tuple[SoloBroadcast, ...] = Field(alias="soloBroadcasts")
-    "Get all solo broadcasts"
-
-    class Arguments(BaseModel):
-        """Arguments for ListSoloBroadcasts"""
-
-        filter: SoloBroadcastFilter | None = Field(default=None)
-        pagination: OffsetPaginationInput | None = Field(default=None)
-
-    class Meta:
-        """Meta class for ListSoloBroadcasts"""
-
-        document = "fragment Streamer on Streamer {\n  user {\n    sub\n    __typename\n  }\n  client {\n    clientId\n    __typename\n  }\n  __typename\n}\n\nfragment SoloBroadcast on SoloBroadcast {\n  id\n  title\n  streamer {\n    ...Streamer\n    __typename\n  }\n  __typename\n}\n\nquery ListSoloBroadcasts($filter: SoloBroadcastFilter, $pagination: OffsetPaginationInput) {\n  soloBroadcasts(filters: $filter, pagination: $pagination) {\n    ...SoloBroadcast\n    __typename\n  }\n}"
 
 
 class GetStreamQuery(BaseModel):
     """No documentation found for this operation."""
 
-    stream: Stream
+    stream: GetStreamQueryStream
     "Get a stream by ID"
 
     class Arguments(BaseModel):
@@ -430,11 +375,11 @@ class GetStreamQuery(BaseModel):
     class Meta:
         """Meta class for GetStream"""
 
-        document = "fragment Stream on Stream {\n  id\n  __typename\n}\n\nquery GetStream($id: ID!) {\n  stream(id: $id) {\n    ...Stream\n    __typename\n  }\n}"
+        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery GetStream($id: ID!) {\n  stream(id: $id) {\n    ...Stream\n    live\n    __typename\n  }\n}"
 
 
 class SearchStreamsQueryOptions(BaseModel):
-    """No documentation"""
+    """One live source an agent offers: a camera, a detector, a microphone"""
 
     typename: Literal["Stream"] = Field(
         alias="__typename", default="Stream", exclude=True
@@ -448,7 +393,7 @@ class SearchStreamsQuery(BaseModel):
     """No documentation found for this operation."""
 
     options: tuple[SearchStreamsQueryOptions, ...]
-    "Get a stream"
+    "The streams of the organization's agents; filter `live` for the ones being published"
 
     class Arguments(BaseModel):
         """Arguments for SearchStreams"""
@@ -462,11 +407,22 @@ class SearchStreamsQuery(BaseModel):
         document = "query SearchStreams($search: String, $values: [ID!]) {\n  options: streams(\n    filters: {search: $search, ids: $values}\n    pagination: {limit: 10}\n  ) {\n    value: id\n    label: title\n    __typename\n  }\n}"
 
 
+class ListStreamsQueryStreams(Stream, BaseModel):
+    """One live source an agent offers: a camera, a detector, a microphone"""
+
+    typename: Literal["Stream"] = Field(
+        alias="__typename", default="Stream", exclude=True
+    )
+    live: bool
+    "Whether the agent publishes this stream right now: LiveKit's answer, asked when read."
+    model_config = ConfigDict(frozen=True)
+
+
 class ListStreamsQuery(BaseModel):
     """No documentation found for this operation."""
 
-    streams: tuple[Stream, ...]
-    "Get a stream"
+    streams: tuple[ListStreamsQueryStreams, ...]
+    "The streams of the organization's agents; filter `live` for the ones being published"
 
     class Arguments(BaseModel):
         """Arguments for ListStreams"""
@@ -477,7 +433,7 @@ class ListStreamsQuery(BaseModel):
     class Meta:
         """Meta class for ListStreams"""
 
-        document = "fragment Stream on Stream {\n  id\n  __typename\n}\n\nquery ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {\n  streams(filters: $filter, pagination: $pagination) {\n    ...Stream\n    __typename\n  }\n}"
+        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {\n  streams(filters: $filter, pagination: $pagination) {\n    ...Stream\n    live\n    __typename\n  }\n}"
 
 
 class LovekitApi:
@@ -486,373 +442,215 @@ class LovekitApi:
     Each method hands its operation to ``execute``, ``aexecute``, ``subscribe``, ``asubscribe`` of ``self``, which the class this one is mixed into (or a base of it) provides.
     """
 
-    async def aensure_solo_broadcast(
-        self,
-        instance_id: str | None | UnsetType = UNSET,
-        title: str | None | UnsetType = UNSET,
-    ) -> SoloBroadcast:
-        """EnsureSoloBroadcast
+    async def adeclare_streams(
+        self, streams: Iterable[StreamDeclarationInput]
+    ) -> tuple[Stream, ...]:
+        """DeclareStreams
 
-        Create a solo broadcast
+        Offer exactly these streams as the caller's agent: undeclared ones are removed, unchanged ones untouched
 
         Args:
-            instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
-            title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+            streams: One stream an agent offers (required) (list) (required)
 
         Returns:
-            SoloBroadcast
+            list[Stream]
         """
         variables: dict[str, builtins.object] = {}
         _input: dict[str, builtins.object] = {}
-        if instance_id is not UNSET:
-            _input["instanceId"] = instance_id
-        if title is not UNSET:
-            _input["title"] = title
+        _input["streams"] = streams
         variables["input"] = _input
-        return (
-            await self.aexecute(EnsureSoloBroadcastMutation, variables)
-        ).ensure_solo_broadcast
+        return (await self.aexecute(DeclareStreamsMutation, variables)).declare_streams
 
-    def ensure_solo_broadcast(
-        self,
-        instance_id: str | None | UnsetType = UNSET,
-        title: str | None | UnsetType = UNSET,
-    ) -> SoloBroadcast:
-        """EnsureSoloBroadcast
+    def declare_streams(
+        self, streams: Iterable[StreamDeclarationInput]
+    ) -> tuple[Stream, ...]:
+        """DeclareStreams
 
-        Create a solo broadcast
+        Offer exactly these streams as the caller's agent: undeclared ones are removed, unchanged ones untouched
 
         Args:
-            instance_id: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
-            title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+            streams: One stream an agent offers (required) (list) (required)
 
         Returns:
-            SoloBroadcast
+            list[Stream]
         """
         variables: dict[str, builtins.object] = {}
         _input: dict[str, builtins.object] = {}
-        if instance_id is not UNSET:
-            _input["instanceId"] = instance_id
-        if title is not UNSET:
-            _input["title"] = title
+        _input["streams"] = streams
         variables["input"] = _input
-        return self.execute(
-            EnsureSoloBroadcastMutation, variables
-        ).ensure_solo_broadcast
+        return self.execute(DeclareStreamsMutation, variables).declare_streams
 
-    async def aensure_stream(
-        self,
-        kind: StreamKind,
-        broadcast: IDCoercible | None | UnsetType = UNSET,
-        title: str | None | UnsetType = UNSET,
-    ) -> str:
-        """EnsureStream
+    async def apublish_token(self) -> str:
+        """PublishToken
 
-        Create a stream and return the token for it
+        A token for the caller's agent to publish its streams; a newer connection replaces an older one
 
         Args:
-            broadcast: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
-            kind: StreamKind (required)
-            title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+
+        Returns:
+            str
+        """
+        variables: dict[str, builtins.object] = {}
+        return (await self.aexecute(PublishTokenMutation, variables)).publish_token
+
+    def publish_token(self) -> str:
+        """PublishToken
+
+        A token for the caller's agent to publish its streams; a newer connection replaces an older one
+
+        Args:
+
+        Returns:
+            str
+        """
+        variables: dict[str, builtins.object] = {}
+        return self.execute(PublishTokenMutation, variables).publish_token
+
+    async def awatch_stream(self, stream: IDCoercible) -> str:
+        """WatchStream
+
+        A token to watch a stream: its agent's room, where it is the track named by its key
+
+        Args:
+            stream: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
 
         Returns:
             str
         """
         variables: dict[str, builtins.object] = {}
         _input: dict[str, builtins.object] = {}
-        if broadcast is not UNSET:
-            _input["broadcast"] = broadcast
-        _input["kind"] = kind
-        if title is not UNSET:
-            _input["title"] = title
+        _input["stream"] = stream
         variables["input"] = _input
-        return (await self.aexecute(EnsureStreamMutation, variables)).ensure_stream
+        return (await self.aexecute(WatchStreamMutation, variables)).watch_stream
 
-    def ensure_stream(
-        self,
-        kind: StreamKind,
-        broadcast: IDCoercible | None | UnsetType = UNSET,
-        title: str | None | UnsetType = UNSET,
-    ) -> str:
-        """EnsureStream
+    def watch_stream(self, stream: IDCoercible) -> str:
+        """WatchStream
 
-        Create a stream and return the token for it
+        A token to watch a stream: its agent's room, where it is the track named by its key
 
         Args:
-            broadcast: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
-            kind: StreamKind (required)
-            title: The `String` scalar type represents textual data, represented as UTF-8 character sequences. The String type is most often used by GraphQL to represent free-form human-readable text.
+            stream: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
 
         Returns:
             str
         """
         variables: dict[str, builtins.object] = {}
         _input: dict[str, builtins.object] = {}
-        if broadcast is not UNSET:
-            _input["broadcast"] = broadcast
-        _input["kind"] = kind
-        if title is not UNSET:
-            _input["title"] = title
+        _input["stream"] = stream
         variables["input"] = _input
-        return self.execute(EnsureStreamMutation, variables).ensure_stream
+        return self.execute(WatchStreamMutation, variables).watch_stream
 
-    async def aget_collaborative_broadcast(
-        self, id: IDCoercible
-    ) -> CollaborativeBroadcast:
-        """GetCollaborativeBroadcast
+    async def awatch_agent(self, agent: IDCoercible) -> str:
+        """WatchAgent
 
-        Get a collaborative broadcast by ID
+        A token to watch every stream of an agent
+
+        Args:
+            agent: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+
+        Returns:
+            str
+        """
+        variables: dict[str, builtins.object] = {}
+        _input: dict[str, builtins.object] = {}
+        _input["agent"] = agent
+        variables["input"] = _input
+        return (await self.aexecute(WatchAgentMutation, variables)).watch_agent
+
+    def watch_agent(self, agent: IDCoercible) -> str:
+        """WatchAgent
+
+        A token to watch every stream of an agent
+
+        Args:
+            agent: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
+
+        Returns:
+            str
+        """
+        variables: dict[str, builtins.object] = {}
+        _input: dict[str, builtins.object] = {}
+        _input["agent"] = agent
+        variables["input"] = _input
+        return self.execute(WatchAgentMutation, variables).watch_agent
+
+    async def aget_agent(self, id: IDCoercible) -> GetAgentQueryAgent:
+        """GetAgent
+
+        Get an agent by ID
 
         Args:
             id (ID): No description
 
         Returns:
-            CollaborativeBroadcast
+            GetAgentQueryAgent
         """
         variables: dict[str, builtins.object] = {}
         variables["id"] = id
-        return (
-            await self.aexecute(GetCollaborativeBroadcastQuery, variables)
-        ).collaborative_broadcast
+        return (await self.aexecute(GetAgentQuery, variables)).agent
 
-    def get_collaborative_broadcast(self, id: IDCoercible) -> CollaborativeBroadcast:
-        """GetCollaborativeBroadcast
+    def get_agent(self, id: IDCoercible) -> GetAgentQueryAgent:
+        """GetAgent
 
-        Get a collaborative broadcast by ID
+        Get an agent by ID
 
         Args:
             id (ID): No description
 
         Returns:
-            CollaborativeBroadcast
+            GetAgentQueryAgent
         """
         variables: dict[str, builtins.object] = {}
         variables["id"] = id
-        return self.execute(
-            GetCollaborativeBroadcastQuery, variables
-        ).collaborative_broadcast
+        return self.execute(GetAgentQuery, variables).agent
 
-    async def asearchollaborative_broadcasts(
+    async def asearch_agents(
         self,
         search: str | None | UnsetType = UNSET,
         values: list[IDCoercible] | None | UnsetType = UNSET,
-    ) -> tuple[SearchollaborativeBroadcastsQueryOptions, ...]:
-        """SearchollaborativeBroadcasts
+    ) -> tuple[SearchAgentsQueryOptions, ...]:
+        """SearchAgents
 
-        Get all collaborative broadcasts
+        The organization's agents that offer streams
 
         Args:
             search (str | None, optional): No description.
             values (list[ID] | None, optional): No description.
 
         Returns:
-            list[SearchollaborativeBroadcastsQueryCollaborativeBroadcasts]
+            list[SearchAgentsQueryAgents]
         """
         variables: dict[str, builtins.object] = {}
         if search is not UNSET:
             variables["search"] = search
         if values is not UNSET:
             variables["values"] = values
-        return (
-            await self.aexecute(SearchollaborativeBroadcastsQuery, variables)
-        ).options
+        return (await self.aexecute(SearchAgentsQuery, variables)).options
 
-    def searchollaborative_broadcasts(
+    def search_agents(
         self,
         search: str | None | UnsetType = UNSET,
         values: list[IDCoercible] | None | UnsetType = UNSET,
-    ) -> tuple[SearchollaborativeBroadcastsQueryOptions, ...]:
-        """SearchollaborativeBroadcasts
+    ) -> tuple[SearchAgentsQueryOptions, ...]:
+        """SearchAgents
 
-        Get all collaborative broadcasts
+        The organization's agents that offer streams
 
         Args:
             search (str | None, optional): No description.
             values (list[ID] | None, optional): No description.
 
         Returns:
-            list[SearchollaborativeBroadcastsQueryCollaborativeBroadcasts]
+            list[SearchAgentsQueryAgents]
         """
         variables: dict[str, builtins.object] = {}
         if search is not UNSET:
             variables["search"] = search
         if values is not UNSET:
             variables["values"] = values
-        return self.execute(SearchollaborativeBroadcastsQuery, variables).options
+        return self.execute(SearchAgentsQuery, variables).options
 
-    async def alist_collaborative_broadcasts(
-        self,
-        filter: CollaborativeBroadcastFilter | None | UnsetType = UNSET,
-        pagination: OffsetPaginationInput | None | UnsetType = UNSET,
-    ) -> tuple[CollaborativeBroadcast, ...]:
-        """ListCollaborativeBroadcasts
-
-        Get all collaborative broadcasts
-
-        Args:
-            filter (CollaborativeBroadcastFilter | None, optional): No description.
-            pagination (OffsetPaginationInput | None, optional): No description.
-
-        Returns:
-            list[CollaborativeBroadcast]
-        """
-        variables: dict[str, builtins.object] = {}
-        if filter is not UNSET:
-            variables["filter"] = filter
-        if pagination is not UNSET:
-            variables["pagination"] = pagination
-        return (
-            await self.aexecute(ListCollaborativeBroadcastsQuery, variables)
-        ).collaborative_broadcasts
-
-    def list_collaborative_broadcasts(
-        self,
-        filter: CollaborativeBroadcastFilter | None | UnsetType = UNSET,
-        pagination: OffsetPaginationInput | None | UnsetType = UNSET,
-    ) -> tuple[CollaborativeBroadcast, ...]:
-        """ListCollaborativeBroadcasts
-
-        Get all collaborative broadcasts
-
-        Args:
-            filter (CollaborativeBroadcastFilter | None, optional): No description.
-            pagination (OffsetPaginationInput | None, optional): No description.
-
-        Returns:
-            list[CollaborativeBroadcast]
-        """
-        variables: dict[str, builtins.object] = {}
-        if filter is not UNSET:
-            variables["filter"] = filter
-        if pagination is not UNSET:
-            variables["pagination"] = pagination
-        return self.execute(
-            ListCollaborativeBroadcastsQuery, variables
-        ).collaborative_broadcasts
-
-    async def aget_solo_broadcast(self, id: IDCoercible) -> SoloBroadcast:
-        """GetSoloBroadcast
-
-        Get a solo broadcast by ID
-
-        Args:
-            id (ID): No description
-
-        Returns:
-            SoloBroadcast
-        """
-        variables: dict[str, builtins.object] = {}
-        variables["id"] = id
-        return (await self.aexecute(GetSoloBroadcastQuery, variables)).solo_broadcast
-
-    def get_solo_broadcast(self, id: IDCoercible) -> SoloBroadcast:
-        """GetSoloBroadcast
-
-        Get a solo broadcast by ID
-
-        Args:
-            id (ID): No description
-
-        Returns:
-            SoloBroadcast
-        """
-        variables: dict[str, builtins.object] = {}
-        variables["id"] = id
-        return self.execute(GetSoloBroadcastQuery, variables).solo_broadcast
-
-    async def asearch_solo_broadcast(
-        self,
-        search: str | None | UnsetType = UNSET,
-        values: list[IDCoercible] | None | UnsetType = UNSET,
-    ) -> tuple[SearchSoloBroadcastQueryOptions, ...]:
-        """SearchSoloBroadcast
-
-        Get all solo broadcasts
-
-        Args:
-            search (str | None, optional): No description.
-            values (list[ID] | None, optional): No description.
-
-        Returns:
-            list[SearchSoloBroadcastQuerySoloBroadcasts]
-        """
-        variables: dict[str, builtins.object] = {}
-        if search is not UNSET:
-            variables["search"] = search
-        if values is not UNSET:
-            variables["values"] = values
-        return (await self.aexecute(SearchSoloBroadcastQuery, variables)).options
-
-    def search_solo_broadcast(
-        self,
-        search: str | None | UnsetType = UNSET,
-        values: list[IDCoercible] | None | UnsetType = UNSET,
-    ) -> tuple[SearchSoloBroadcastQueryOptions, ...]:
-        """SearchSoloBroadcast
-
-        Get all solo broadcasts
-
-        Args:
-            search (str | None, optional): No description.
-            values (list[ID] | None, optional): No description.
-
-        Returns:
-            list[SearchSoloBroadcastQuerySoloBroadcasts]
-        """
-        variables: dict[str, builtins.object] = {}
-        if search is not UNSET:
-            variables["search"] = search
-        if values is not UNSET:
-            variables["values"] = values
-        return self.execute(SearchSoloBroadcastQuery, variables).options
-
-    async def alist_solo_broadcasts(
-        self,
-        filter: SoloBroadcastFilter | None | UnsetType = UNSET,
-        pagination: OffsetPaginationInput | None | UnsetType = UNSET,
-    ) -> tuple[SoloBroadcast, ...]:
-        """ListSoloBroadcasts
-
-        Get all solo broadcasts
-
-        Args:
-            filter (SoloBroadcastFilter | None, optional): No description.
-            pagination (OffsetPaginationInput | None, optional): No description.
-
-        Returns:
-            list[SoloBroadcast]
-        """
-        variables: dict[str, builtins.object] = {}
-        if filter is not UNSET:
-            variables["filter"] = filter
-        if pagination is not UNSET:
-            variables["pagination"] = pagination
-        return (await self.aexecute(ListSoloBroadcastsQuery, variables)).solo_broadcasts
-
-    def list_solo_broadcasts(
-        self,
-        filter: SoloBroadcastFilter | None | UnsetType = UNSET,
-        pagination: OffsetPaginationInput | None | UnsetType = UNSET,
-    ) -> tuple[SoloBroadcast, ...]:
-        """ListSoloBroadcasts
-
-        Get all solo broadcasts
-
-        Args:
-            filter (SoloBroadcastFilter | None, optional): No description.
-            pagination (OffsetPaginationInput | None, optional): No description.
-
-        Returns:
-            list[SoloBroadcast]
-        """
-        variables: dict[str, builtins.object] = {}
-        if filter is not UNSET:
-            variables["filter"] = filter
-        if pagination is not UNSET:
-            variables["pagination"] = pagination
-        return self.execute(ListSoloBroadcastsQuery, variables).solo_broadcasts
-
-    async def aget_stream(self, id: IDCoercible) -> Stream:
+    async def aget_stream(self, id: IDCoercible) -> GetStreamQueryStream:
         """GetStream
 
         Get a stream by ID
@@ -861,13 +659,13 @@ class LovekitApi:
             id (ID): No description
 
         Returns:
-            Stream
+            GetStreamQueryStream
         """
         variables: dict[str, builtins.object] = {}
         variables["id"] = id
         return (await self.aexecute(GetStreamQuery, variables)).stream
 
-    def get_stream(self, id: IDCoercible) -> Stream:
+    def get_stream(self, id: IDCoercible) -> GetStreamQueryStream:
         """GetStream
 
         Get a stream by ID
@@ -876,7 +674,7 @@ class LovekitApi:
             id (ID): No description
 
         Returns:
-            Stream
+            GetStreamQueryStream
         """
         variables: dict[str, builtins.object] = {}
         variables["id"] = id
@@ -889,7 +687,7 @@ class LovekitApi:
     ) -> tuple[SearchStreamsQueryOptions, ...]:
         """SearchStreams
 
-        Get a stream
+        The streams of the organization's agents; filter `live` for the ones being published
 
         Args:
             search (str | None, optional): No description.
@@ -912,7 +710,7 @@ class LovekitApi:
     ) -> tuple[SearchStreamsQueryOptions, ...]:
         """SearchStreams
 
-        Get a stream
+        The streams of the organization's agents; filter `live` for the ones being published
 
         Args:
             search (str | None, optional): No description.
@@ -932,17 +730,17 @@ class LovekitApi:
         self,
         filter: StreamFilter | None | UnsetType = UNSET,
         pagination: OffsetPaginationInput | None | UnsetType = UNSET,
-    ) -> tuple[Stream, ...]:
+    ) -> tuple[ListStreamsQueryStreams, ...]:
         """ListStreams
 
-        Get a stream
+        The streams of the organization's agents; filter `live` for the ones being published
 
         Args:
             filter (StreamFilter | None, optional): No description.
             pagination (OffsetPaginationInput | None, optional): No description.
 
         Returns:
-            list[Stream]
+            list[ListStreamsQueryStreams]
         """
         variables: dict[str, builtins.object] = {}
         if filter is not UNSET:
@@ -955,17 +753,17 @@ class LovekitApi:
         self,
         filter: StreamFilter | None | UnsetType = UNSET,
         pagination: OffsetPaginationInput | None | UnsetType = UNSET,
-    ) -> tuple[Stream, ...]:
+    ) -> tuple[ListStreamsQueryStreams, ...]:
         """ListStreams
 
-        Get a stream
+        The streams of the organization's agents; filter `live` for the ones being published
 
         Args:
             filter (StreamFilter | None, optional): No description.
             pagination (OffsetPaginationInput | None, optional): No description.
 
         Returns:
-            list[Stream]
+            list[ListStreamsQueryStreams]
         """
         variables: dict[str, builtins.object] = {}
         if filter is not UNSET:
@@ -975,6 +773,5 @@ class LovekitApi:
         return self.execute(ListStreamsQuery, variables).streams
 
 
-CollaborativeBroadcastFilter.model_rebuild()
-SoloBroadcastFilter.model_rebuild()
+DeclareStreamsInput.model_rebuild()
 StreamFilter.model_rebuild()

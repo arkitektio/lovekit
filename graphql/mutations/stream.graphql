@@ -1,3 +1,17 @@
-mutation EnsureStream($input: EnsureStreamInput!) {
-  ensureStream(input: $input)
+mutation DeclareStreams($input: DeclareStreamsInput!) {
+  declareStreams(input: $input) {
+    ...Stream
+  }
+}
+
+mutation PublishToken {
+  publishToken
+}
+
+mutation WatchStream($input: WatchStreamInput!) {
+  watchStream(input: $input)
+}
+
+mutation WatchAgent($input: WatchAgentInput!) {
+  watchAgent(input: $input)
 }

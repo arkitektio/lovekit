@@ -1,0 +1,11 @@
+fragment Agent on Agent {
+  id
+  name
+  roomName
+  client {
+    clientId
+  }
+  user {
+    sub
+  }
+}

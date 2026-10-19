@@ -1,12 +1,141 @@
+directive @oneOf on INPUT_OBJECT
+
 schema @link(url: "https://specs.apollo.dev/federation/v2.11", import: ["@key"]) {
   query: Query
   mutation: Mutation
   subscription: Subscription
 }
 
+"""What a call is now also about"""
+input AddToCallInput {
+  call: ID!
+  about: [StructureInput!]!
+}
+
+"""
+An app instance that owns live streams: one per client, user and organization
+"""
+type Agent {
+  id: ID!
+  client: Client!
+  user: User!
+  createdAt: DateTime!
+
+  """Every stream the agent offers, as it declared them last"""
+  streams(filters: StreamFilter, order: StreamOrder, pagination: OffsetPaginationInput): [Stream!]!
+
+  """What the agent is called: its client's name, or its client id."""
+  name: String!
+
+  """The LiveKit room the agent's streams are tracks in."""
+  roomName: String!
+
+  """Whether the agent publishes any of its streams right now."""
+  live: Boolean!
+}
+
+"""Filter for agents"""
+input AgentFilter {
+  AND: AgentFilter
+  OR: AgentFilter
+  NOT: AgentFilter
+  DISTINCT: Boolean
+  ids: [ID!]
+  search: String
+
+  """
+  Agents running as this client (its OAuth client id), as rekuest knows it too.
+  """
+  clientId: String
+
+  """Agents running for this user (the `sub` their token carries)."""
+  userSub: String
+}
+
 type App @key(fields: "id", resolvable: true) {
   id: ID!
   identifier: String!
+}
+
+type Call {
+  id: ID!
+  title: String!
+  createdAt: DateTime!
+  creator: User
+
+  """
+  The structures this call is about, oldest first: the last one is what it turned to most recently.
+  """
+  about: [Structure!]!
+
+  """The LiveKit room this call's participants join."""
+  roomName: String!
+
+  """
+  Who is in the call right now. Empty when nobody is: a call is live while LiveKit holds its room.
+  """
+  participants: [CallParticipant!]!
+
+  """How many are in the call right now."""
+  participantCount: Int!
+}
+
+"""A call starting in your organization, or changing what it is about"""
+type CallEvent {
+  """A call someone else just started, which you can join"""
+  create: Call
+
+  """
+  A call that turned to something else; what it was about before is still in `about`
+  """
+  update: Call
+}
+
+"""Filter for calls"""
+input CallFilter {
+  AND: CallFilter
+  OR: CallFilter
+  NOT: CallFilter
+  DISTINCT: Boolean
+  ids: [ID!]
+  search: String
+
+  """Calls about this structure."""
+  about: StructureInput
+
+  """Only calls whose LiveKit room is up (true) or down (false)."""
+  live: Boolean
+}
+
+"""Someone asking someone else into a call"""
+type CallInvite {
+  id: ID!
+  call: Call!
+  inviter: User!
+  invitee: User!
+  createdAt: DateTime!
+}
+
+"""An invitation to a call arriving, or going away"""
+type CallInviteEvent {
+  """A new invitation for you"""
+  create: CallInvite
+
+  """
+  An invitation that was dismissed or answered, here or on another device
+  """
+  delete: ID
+}
+
+input CallOrder @oneOf {
+  createdAt: Ordering
+}
+
+"""Someone in a live call, as LiveKit reports them"""
+type CallParticipant {
+  identity: String!
+  name: String!
+  joinedAt: Int!
 }
 
 type Client @key(fields: "id", resolvable: true) {
@@ -15,68 +144,92 @@ type Client @key(fields: "id", resolvable: true) {
   clientId: String!
 }
 
-type CollaborativeBroadcast {
-  id: ID!
-  title: String!
-  createdAt: DateTime!
-
-  """The streamers that are collaborating on this broadcast."""
-  streamers(filters: StreamerFilter, pagination: OffsetPaginationInput): [Streamer!]!
-  streams: [Stream!]!
-  videoStreams: [Stream!]!
-  audioStreams: [Stream!]!
-}
-
-"""Filter for Solo Broadcasts"""
-input CollaborativeBroadcastFilter {
-  ids: [ID!] = null
-  search: String = null
-  AND: CollaborativeBroadcastFilter
-  OR: CollaborativeBroadcastFilter
-  NOT: CollaborativeBroadcastFilter
-  DISTINCT: Boolean
-}
-
 """Date with time (isoformat)"""
 scalar DateTime
 
-input EnsureCollaborativeBroadcastInput {
-  instanceId: String = null
+"""Every stream an agent offers"""
+input DeclareStreamsInput {
+  streams: [StreamDeclarationInput!]!
+}
+
+"""The invitation to put away"""
+input DismissCallInviteInput {
+  id: ID!
+}
+
+"""The call to find or start"""
+input EnsureCallInput {
+  about: [StructureInput!]!
   title: String = null
 }
 
-input EnsureSoloBroadcastInput {
-  instanceId: String = null
-  title: String = null
+"""Who to ask into a call"""
+input InviteToCallInput {
+  call: ID!
+
+  """The users to invite, by their lok id (the `sub` their token carries)"""
+  users: [ID!]!
 }
 
-input EnsureStreamInput {
-  broadcast: ID = null
-  kind: StreamKind! = VIDEO
-  title: String = null
-}
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
+"""
+scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf")
 
-input JoinBroadcastInput {
-  broadcast: ID!
+"""The call to join"""
+input JoinCallInput {
+  call: ID!
 }
 
 type Mutation {
-  """Create a solo broadcast"""
-  ensureSoloBroadcast(input: EnsureSoloBroadcastInput!): SoloBroadcast!
+  """
+  Offer exactly these streams as the caller's agent: undeclared ones are removed, unchanged ones untouched
+  """
+  declareStreams(input: DeclareStreamsInput!): [Stream!]!
 
-  """Create a collaborative broadcast"""
-  ensureCollaborativeBroadcast(input: EnsureCollaborativeBroadcastInput!): CollaborativeBroadcast!
+  """
+  A token for the caller's agent to publish its streams; a newer connection replaces an older one
+  """
+  publishToken: String!
 
-  """Create a stream and return the token for it"""
-  ensureStream(input: EnsureStreamInput!): String!
+  """
+  A token to watch a stream: its agent's room, where it is the track named by its key
+  """
+  watchStream(input: WatchStreamInput!): String!
 
-  """Join a solo broadcast and return the token for it"""
-  joinBroadcast(input: JoinBroadcastInput!): String!
+  """A token to watch every stream of an agent"""
+  watchAgent(input: WatchAgentInput!): String!
+
+  """The live call about these structures, or a new one"""
+  ensureCall(input: EnsureCallInput!): Call!
+
+  """
+  Turn a call to these structures: they become what it is about last, and what it was about stays
+  """
+  addToCall(input: AddToCallInput!): Call!
+
+  """Join a call and return the token for it"""
+  joinCall(input: JoinCallInput!): String!
+
+  """Ask users into a call; their open apps ring"""
+  inviteToCall(input: InviteToCallInput!): Call!
+
+  """Put an invitation away, on every device"""
+  dismissCallInvite(input: DismissCallInviteInput!): ID!
 }
 
 input OffsetPaginationInput {
   offset: Int! = 0
   limit: Int
+}
+
+enum Ordering {
+  ASC
+  ASC_NULLS_FIRST
+  ASC_NULLS_LAST
+  DESC
+  DESC_NULLS_FIRST
+  DESC_NULLS_LAST
 }
 
 type Organization @key(fields: "id", resolvable: true) {
@@ -88,23 +241,28 @@ type Query {
   _entities(representations: [_Any!]!): [_Entity]!
   _service: _Service!
 
-  """Get a stream"""
-  streams(filters: StreamFilter, pagination: OffsetPaginationInput): [Stream!]!
+  """
+  The streams of the organization's agents; filter `live` for the ones being published
+  """
+  streams(filters: StreamFilter, order: StreamOrder, pagination: OffsetPaginationInput): [Stream!]!
 
-  """Get all solo broadcasts"""
-  soloBroadcasts(filters: SoloBroadcastFilter, pagination: OffsetPaginationInput): [SoloBroadcast!]!
+  """The organization's agents that offer streams"""
+  agents(filters: AgentFilter, pagination: OffsetPaginationInput): [Agent!]!
 
-  """Get all collaborative broadcasts"""
-  collaborativeBroadcasts(filters: CollaborativeBroadcastFilter, pagination: OffsetPaginationInput): [CollaborativeBroadcast!]!
+  """The organization's calls; filter `live` for the ones in progress"""
+  calls(filters: CallFilter, order: CallOrder, pagination: OffsetPaginationInput): [Call!]!
 
   """Get a stream by ID"""
   stream(id: ID!): Stream!
 
-  """Get a solo broadcast by ID"""
-  soloBroadcast(id: ID!): SoloBroadcast!
+  """Get an agent by ID"""
+  agent(id: ID!): Agent!
 
-  """Get a collaborative broadcast by ID"""
-  collaborativeBroadcast(id: ID!): CollaborativeBroadcast!
+  """Get a call by ID"""
+  call(id: ID!): Call!
+
+  """Your pending invitations to calls that are still live"""
+  myCallInvites: [CallInvite!]!
 }
 
 type Release @key(fields: "id", resolvable: true) {
@@ -113,87 +271,164 @@ type Release @key(fields: "id", resolvable: true) {
   version: String!
 }
 
-type SoloBroadcast {
-  id: ID!
-  title: String!
-  createdAt: DateTime!
-  streamer: Streamer!
-  videoStreams: [Stream!]!
-  audioStreams: [Stream!]!
-}
-
-"""Filter for Solo Broadcasts"""
-input SoloBroadcastFilter {
-  ids: [ID!] = null
-  search: String = null
-  AND: SoloBroadcastFilter
-  OR: SoloBroadcastFilter
-  NOT: SoloBroadcastFilter
-  DISTINCT: Boolean
-}
-
+"""One live source an agent offers: a camera, a detector, a microphone"""
 type Stream {
   id: ID!
-  kind: StreamKind!
-  streamer: Streamer!
+
+  """
+  The agent's name for the stream, the same across its restarts: the name of the LiveKit track it is published as
+  """
+  key: String!
   title: String!
+  kind: StreamKind!
+  description: String
+  createdAt: DateTime!
+  agent: Agent!
+
+  """
+  This object's descriptors, a flat mapping of key to value: the facts about it that an action's port can `require` and a trigger can test (e.g. `@lovekit/stream_kind`). The keys are the ones lovekit declares for this structure, and the values are the ones a signal about the object carries. Empty for a structure that declares none
+  """
+  descriptors: JSON!
+
+  """
+  Whether the agent publishes this stream right now: LiveKit's answer, asked when read.
+  """
+  live: Boolean!
 }
 
+"""One stream an agent offers"""
+input StreamDeclarationInput {
+  """
+  The agent's own name for the stream, the same on every start; its LiveKit track is published under this name
+  """
+  key: String!
+
+  """What the stream is called; the key when not given"""
+  title: String = null
+
+  """Whether it is video or audio"""
+  kind: StreamKind! = VIDEO
+
+  """What the stream shows"""
+  description: String = null
+}
+
+"""
+A stream an agent of your organization declared, changed or no longer offers
+"""
 type StreamEvent {
+  """A stream an agent declared for the first time"""
   create: Stream
-  delete: ID
+
+  """A stream whose title, kind or description changed"""
   update: Stream
-  moved: Stream
+
+  """A stream its agent no longer offers"""
+  delete: ID
 }
 
-"""Filter for Streams"""
+"""Filter for streams"""
 input StreamFilter {
-  ids: [ID!] = null
-  search: String = null
   AND: StreamFilter
   OR: StreamFilter
   NOT: StreamFilter
   DISTINCT: Boolean
+  ids: [ID!]
+  search: String
+
+  """Streams of this agent."""
+  agent: ID
+
+  """
+  Streams of the agent running as this client (its OAuth client id), as rekuest knows it too.
+  """
+  clientId: String
+
+  """
+  Streams of agents running for this user (the `sub` their token carries).
+  """
+  userSub: String
+
+  """
+  Only streams their agent publishes right now (true), or does not (false).
+  """
+  live: Boolean
 }
 
-"""The state of a dask cluster"""
+"""What a stream carries"""
 enum StreamKind {
   VIDEO
   AUDIO
 }
 
-type Streamer {
-  id: ID!
-  user: User!
-  client: Client!
-
-  """The solo broadcasts created by this agent, if any."""
-  soloBroadcasts: SoloBroadcast
-
-  """The collaborative broadcasts created by this agent."""
-  collaborativeBroadcasts(filters: CollaborativeBroadcastFilter, pagination: OffsetPaginationInput): [CollaborativeBroadcast!]!
+input StreamOrder @oneOf {
+  createdAt: Ordering
+  title: Ordering
 }
 
-"""Filter for Dask Clusters"""
-input StreamerFilter {
-  ids: [ID!] = null
-  search: String = null
-  AND: StreamerFilter
-  OR: StreamerFilter
-  NOT: StreamerFilter
-  DISTINCT: Boolean
+"""A reference to an object on another service"""
+type Structure {
+  identifier: String!
+  object: Int!
+}
+
+"""A reference to an object on another service"""
+input StructureInput {
+  identifier: String!
+  object: Int!
 }
 
 type Subscription {
-  """Subscribe to stream events"""
-  streams(dataset: ID = null): StreamEvent!
+  """
+  Streams your organization's agents declare, change and drop, as they do
+  """
+  streams: StreamEvent!
+
+  """Your invitations to calls as they arrive and go away"""
+  callInvites: CallInviteEvent!
+
+  """
+  The calls others start in your organization as they start, and any call's new topics
+  """
+  calls: CallEvent!
 }
 
 type User @key(fields: "id", resolvable: true) {
   id: ID!
   sub: String!
   preferredUsername: String!
+
+  """The full name, if the issuer sends one."""
+  name: String
+
+  """The given name, if the issuer sends one."""
+  givenName: String
+
+  """The family name, if the issuer sends one."""
+  familyName: String
+
+  """A casual name, if the issuer sends one."""
+  nickname: String
+
+  """URL of the profile picture, if the issuer sends one."""
+  picture: String
+
+  """The user's locale (BCP47), if the issuer sends one."""
+  locale: String
+
+  """The user's IANA time zone, if the issuer sends one."""
+  zoneinfo: String
   activeOrganization: Organization
+}
+
+"""The agent whose streams to watch"""
+input WatchAgentInput {
+  agent: ID!
+}
+
+"""The stream to watch"""
+input WatchStreamInput {
+  stream: ID!
 }
 
 scalar _Any

@@ -18,6 +18,8 @@ from lovekit.rath import (
 from graphql import OperationType
 from dataclasses import dataclass
 
+from fakts import Alias
+
 
 def pytest_configure(config: pytest.Config) -> None:
     """Register custom platform markers."""
@@ -68,12 +70,19 @@ def integration_ports() -> Generator[dict[str, int], None, None]:
     an unpublished port reads back as ``None`` and the test URLs would quietly
     become ``http://localhost:None`` instead of failing loudly.
     """
-    lovekit_port, rustfs_port = _reserve_free_ports(2)
-    env = {"LOVEKIT_HOST_PORT": str(lovekit_port), "RUSTFS_HOST_PORT": str(rustfs_port)}
+    lovekit_port, rustfs_port, livekit_port, livekit_tcp, livekit_udp = _reserve_free_ports(5)
+    env = {
+        "LOVEKIT_HOST_PORT": str(lovekit_port),
+        "RUSTFS_HOST_PORT": str(rustfs_port),
+        "LIVEKIT_HOST_PORT": str(livekit_port),
+        "LIVEKIT_TCP_PORT": str(livekit_tcp),
+        # A free TCP port is very likely a free UDP port too; nothing binds it over TCP.
+        "LIVEKIT_UDP_PORT": str(livekit_udp),
+    }
     previous = {key: os.environ.get(key) for key in env}
     os.environ.update(env)
     try:
-        yield {"lovekit": lovekit_port, "rustfs": rustfs_port}
+        yield {"lovekit": lovekit_port, "rustfs": rustfs_port, "livekit": livekit_port}
     finally:
         for key, value in previous.items():
             if value is None:
@@ -116,7 +125,9 @@ def deployed_app(integration_ports: dict[str, int]) -> Generator[DeployedLovekit
 
     with setup:
         setup.down()
-        setup.pull()
+        # A server built here (`LOVEKIT_SERVICE_TAG=<local tag>`) exists on no registry.
+        if not os.environ.get("LOVEKIT_SERVICE_TAG"):
+            setup.pull()
         setup.inspect()
 
         http_url = f"http://localhost:{setup.spec.find_service('lovekit').get_port_for_internal(80).published}/graphql"
@@ -159,3 +170,19 @@ def deployed_app(integration_ports: dict[str, int]) -> Generator[DeployedLovekit
 def lovekit(deployed_app: DeployedLovekit) -> Lovekit:
     """The deployment's client: API calls are its methods, nothing is ambient."""
     return deployed_app.lovekit
+
+
+#: The deployment's LiveKit keys (tests/integration/docker-compose.yml, configs/lovekit.yaml).
+LIVEKIT_KEY, LIVEKIT_SECRET = "devkey", "devsecret_devsecret_devsecret_devsecret"
+
+
+@pytest.fixture(scope="session")
+def livekit_alias(deployed_app: DeployedLovekit, integration_ports: dict[str, int]) -> Alias:
+    """Where the deployment's LiveKit is, from the host: what fakts would resolve."""
+    return Alias(id="livekit", host="localhost", port=integration_ports["livekit"], ssl=False, kind="absolute")
+
+
+@pytest.fixture
+def agent(deployed_app: DeployedLovekit, livekit_alias: Alias) -> Lovekit:
+    """An app's client that publishes: the deployment's, with its LiveKit."""
+    return Lovekit(rath=deployed_app.lovekit.rath, livekit=livekit_alias)

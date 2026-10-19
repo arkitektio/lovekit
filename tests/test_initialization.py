@@ -6,8 +6,8 @@ exercising pure-Python construction of the client and the generated schema model
 
 from lovekit.lovekit import Lovekit
 from lovekit.api.schema import (
-    EnsureStreamInput,
     OffsetPaginationInput,
+    StreamDeclarationInput,
     StreamFilter,
     StreamKind,
 )
@@ -24,11 +24,11 @@ def test_stream_kind_values() -> None:
     assert StreamKind.AUDIO.value == "AUDIO"
 
 
-def test_ensure_stream_input_constructs() -> None:
-    """``EnsureStreamInput`` builds from a kind and title."""
-    payload = EnsureStreamInput(kind=StreamKind.VIDEO, title="hello")
+def test_stream_declaration_input_constructs() -> None:
+    """``StreamDeclarationInput`` builds from a key, a kind and a title."""
+    payload = StreamDeclarationInput(key="camera", kind=StreamKind.VIDEO, title="hello")
     assert payload.kind == StreamKind.VIDEO.value
-    assert payload.title == "hello"
+    assert (payload.key, payload.title) == ("camera", "hello")
 
 
 def test_offset_pagination_input_constructs() -> None:

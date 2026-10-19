@@ -1,3 +1,11 @@
 fragment Stream on Stream {
   id
+  key
+  title
+  kind
+  description
+  agent {
+    id
+    roomName
+  }
 }

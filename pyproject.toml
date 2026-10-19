@@ -7,7 +7,9 @@ requires-python = ">=3.11"
 readme = "README.md"
 dependencies = [
     "aiohttp>=3.9.5,<4",
-    "livekit>=0.16.3",
+    "livekit>=1.0",
+    # Frames are numpy arrays (lovekit.publish).
+    "numpy>=1.26",
     "rath>=4.1.1",
     # The service and structures are declared with arkitekt-spec.
     "arkitekt-spec>=3.4",
@@ -31,6 +33,7 @@ dev-dependencies =  [
     "dokker>=2.8",
     "websockets>=15.0.1",
     "basedpyright>=1.21",
+    "livekit-api>=1.0",
 ]
 
 [tool.basedpyright]

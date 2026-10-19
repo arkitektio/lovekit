@@ -17,7 +17,7 @@ from lovekit import arkitekt as declared  # noqa: E402
 #: The identifiers lovekit puts on the wire. Changing one is a cross-service change,
 #: so they are written out rather than derived from the thing under test.
 IDENTIFIERS = {
-    "@lovekit/solo_broadcast",
+    "@lovekit/agent",
     "@lovekit/stream",
 }
 

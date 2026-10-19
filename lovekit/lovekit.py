@@ -1,16 +1,20 @@
 """The core client for the lovekit service"""
 
-from collections.abc import AsyncGenerator, Generator
-from typing import Any
+from collections.abc import AsyncGenerator, Generator, Iterable
+from typing import TYPE_CHECKING, Any
 
 from fakts import Alias
 from koil import unkoil, unkoil_gen
+from pydantic import PrivateAttr
 from koil.composition import Composition
 from rath.origin import origin_context
 from rath.turms.funcs import TOperation
 
 from lovekit.api.schema import LovekitApi
 from lovekit.rath import LovekitRath
+
+if TYPE_CHECKING:
+    from lovekit.publish import AudioStream, LiveStreams, VideoStream
 
 
 class Lovekit(Composition, LovekitApi):
@@ -29,6 +33,29 @@ class Lovekit(Composition, LovekitApi):
     livekit: Alias | None = None
     """The media server rooms are hosted on, as resolved: a mesh alias carries
     the mesh node it is reached through."""
+    _publisher: Any = PrivateAttr(default=None)
+
+    def publish(self, streams: "Iterable[VideoStream | AudioStream]") -> "LiveStreams":
+        """Offer exactly these streams as this app's agent, and keep them published.
+
+        ``async with lovekit.publish([VideoStream("camera")]) as live:`` declares them,
+        joins the agent's room (again, whenever it drops) and gives the tracks to send
+        to (``live["camera"]``). See :mod:`lovekit.publish`.
+
+        The declaration is the agent's whole set, so a client publishes once at a time:
+        a second ``publish`` while the first is open raises.
+        """
+        from lovekit.publish import LiveStreams, declarations
+
+        if self._publisher is not None:
+            raise RuntimeError("This client already publishes its agent's streams: declare them all in one publish()")
+        live = LiveStreams(self, declarations(streams))
+        self._publisher = live
+        return live
+
+    def _release_publisher(self, live: "LiveStreams") -> None:
+        if self._publisher is live:
+            self._publisher = None
 
     async def aroom_options(self) -> tuple[str, Any]:
         """The url and ``livekit.rtc.RoomOptions`` to connect a room with

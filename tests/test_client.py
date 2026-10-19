@@ -25,7 +25,18 @@ class FakeRath:
     def _answer(self, variables: dict[str, Any]) -> Any:
         self.sent.append(variables)
         return SimpleNamespace(
-            data={"stream": {"id": "stream-1", "__typename": "Stream", "broadcast": {"id": "b-1"}}}
+            data={
+                "stream": {
+                    "id": "stream-1",
+                    "__typename": "Stream",
+                    "key": "camera",
+                    "title": "Camera",
+                    "kind": "VIDEO",
+                    "description": None,
+                    "live": False,
+                    "agent": {"id": "a-1", "roomName": "agent-a-1", "__typename": "Agent"},
+                }
+            }
         )
 
     async def aquery(self, document: str, variables: dict[str, Any]) -> Any:
@@ -35,7 +46,7 @@ class FakeRath:
         yield self._answer(variables)
 
 
-class Broadcast(ContextBound):
+class BoundAgent(ContextBound):
     model_config = ConfigDict(frozen=True)
     id: str
 
@@ -43,7 +54,7 @@ class Broadcast(ContextBound):
 class BoundStream(ContextBound):
     model_config = ConfigDict(frozen=True)
     id: str
-    broadcast: Broadcast
+    agent: BoundAgent
 
 
 class GetBoundStream(BaseModel):
@@ -75,7 +86,7 @@ async def test_aexecute_goes_through_the_client_and_results_remember_it() -> Non
     result = await mine.aexecute(GetBoundStream, {"id": "stream-1"})
 
     assert (len(mine.rath.sent), len(other.rath.sent)) == (1, 0)
-    origin = get_origin(result.stream.broadcast)
+    origin = get_origin(result.stream.agent)
     assert origin is not None and origin.client is mine and origin.rath is mine.rath
 
 
@@ -132,7 +143,7 @@ def test_a_sync_generated_method_goes_through_its_own_client() -> None:
 
 def test_operations_are_methods_not_module_functions() -> None:
     assert issubclass(Lovekit, schema.LovekitApi)
-    for name in ("aget_stream", "get_stream", "aensure_stream", "list_streams"):
+    for name in ("aget_stream", "get_stream", "adeclare_streams", "list_streams"):
         assert callable(getattr(Lovekit, name))
         assert not hasattr(schema, name), f"{name} is still a module-level function"
     # livekit: to connect rooms, also through the mesh (the alias carries its node).

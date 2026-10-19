@@ -22,6 +22,12 @@ projects:
           - type: turms.stylers.default.DefaultStyler
           - type: turms.stylers.appender.AppenderStyler
             append_fragment: ""
+        # The structure each type is known by across the hub (arkitekt-service's
+        # `@identified`), on every class generated for it, a nested selection included.
+        directive_class_vars:
+          - directive: identified
+            argument: by
+            attribute: __identifier__
         plugins:
           - type: turms.plugins.enums.EnumsPlugin
           - type: turms.plugins.inputs.InputsPlugin

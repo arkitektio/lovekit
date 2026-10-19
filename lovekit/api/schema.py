@@ -2,7 +2,7 @@ import builtins
 from enum import Enum
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from rath.scalars import ID, IDCoercible
-from typing import Annotated, Iterable, Literal
+from typing import Annotated, ClassVar, Iterable, Literal
 
 
 class GraphQLDefault:
@@ -138,6 +138,7 @@ class WatchStreamInput(BaseModel):
 class StreamAgent(BaseModel):
     """An app instance that owns live streams: one per client, user and organization"""
 
+    __identifier__: ClassVar[Literal["@lovekit/agent"]] = "@lovekit/agent"
     typename: Literal["Agent"] = Field(
         alias="__typename", default="Agent", exclude=True
     )
@@ -150,6 +151,7 @@ class StreamAgent(BaseModel):
 class Stream(BaseModel):
     """One live source an agent offers: a camera, a detector, a microphone"""
 
+    __identifier__: ClassVar[Literal["@lovekit/stream"]] = "@lovekit/stream"
     typename: Literal["Stream"] = Field(
         alias="__typename", default="Stream", exclude=True
     )
@@ -191,6 +193,7 @@ class AgentUser(BaseModel):
 class Agent(BaseModel):
     """An app instance that owns live streams: one per client, user and organization"""
 
+    __identifier__: ClassVar[Literal["@lovekit/agent"]] = "@lovekit/agent"
     typename: Literal["Agent"] = Field(
         alias="__typename", default="Agent", exclude=True
     )
@@ -251,7 +254,7 @@ class WatchStreamMutation(BaseModel):
     """No documentation found for this operation."""
 
     watch_stream: str = Field(alias="watchStream")
-    "A token to watch a stream: its agent's room, where it is the track named by its key"
+    "A token to watch a stream: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations"
 
     class Arguments(BaseModel):
         """Arguments for WatchStream"""
@@ -268,7 +271,7 @@ class WatchAgentMutation(BaseModel):
     """No documentation found for this operation."""
 
     watch_agent: str = Field(alias="watchAgent")
-    "A token to watch every stream of an agent"
+    "A token to watch every stream of an agent. A guest needs the agent in one of their collaborations"
 
     class Arguments(BaseModel):
         """Arguments for WatchAgent"""
@@ -301,6 +304,7 @@ class GetAgentQuery(BaseModel):
 class SearchAgentsQueryOptions(BaseModel):
     """An app instance that owns live streams: one per client, user and organization"""
 
+    __identifier__: ClassVar[Literal["@lovekit/agent"]] = "@lovekit/agent"
     typename: Literal["Agent"] = Field(
         alias="__typename", default="Agent", exclude=True
     )
@@ -348,6 +352,7 @@ class GetStreamQuery(BaseModel):
 class IsStreamLiveQueryStream(BaseModel):
     """One live source an agent offers: a camera, a detector, a microphone"""
 
+    __identifier__: ClassVar[Literal["@lovekit/stream"]] = "@lovekit/stream"
     typename: Literal["Stream"] = Field(
         alias="__typename", default="Stream", exclude=True
     )
@@ -376,6 +381,7 @@ class IsStreamLiveQuery(BaseModel):
 class SearchStreamsQueryOptions(BaseModel):
     """One live source an agent offers: a camera, a detector, a microphone"""
 
+    __identifier__: ClassVar[Literal["@lovekit/stream"]] = "@lovekit/stream"
     typename: Literal["Stream"] = Field(
         alias="__typename", default="Stream", exclude=True
     )
@@ -493,7 +499,7 @@ class LovekitApi:
     async def awatch_stream(self, stream: IDCoercible) -> str:
         """WatchStream
 
-        A token to watch a stream: its agent's room, where it is the track named by its key
+        A token to watch a stream: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations
 
         Args:
             stream: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
@@ -510,7 +516,7 @@ class LovekitApi:
     def watch_stream(self, stream: IDCoercible) -> str:
         """WatchStream
 
-        A token to watch a stream: its agent's room, where it is the track named by its key
+        A token to watch a stream: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations
 
         Args:
             stream: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
@@ -527,7 +533,7 @@ class LovekitApi:
     async def awatch_agent(self, agent: IDCoercible) -> str:
         """WatchAgent
 
-        A token to watch every stream of an agent
+        A token to watch every stream of an agent. A guest needs the agent in one of their collaborations
 
         Args:
             agent: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
@@ -544,7 +550,7 @@ class LovekitApi:
     def watch_agent(self, agent: IDCoercible) -> str:
         """WatchAgent
 
-        A token to watch every stream of an agent
+        A token to watch every stream of an agent. A guest needs the agent in one of their collaborations
 
         Args:
             agent: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)

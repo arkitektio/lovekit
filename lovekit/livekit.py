@@ -36,6 +36,12 @@ async def aroom_options(alias: Alias) -> tuple[str, Any]:
     from livekit import rtc
 
     if not alias.is_mesh():
+        # LiveKit's SDK (rustls) reads its roots only from SSL_CERT_FILE: a pinned
+        # SFU's hub certificate is added to them there.
+        if alias.is_pinned():
+            from arkitekt_spec.declare import tls
+
+            tls.trust_natively(alias.certificates)
         return alias.to_ws_path(), rtc.RoomOptions()
     local = await alias.aforward()
     turn = await alias.aturn()

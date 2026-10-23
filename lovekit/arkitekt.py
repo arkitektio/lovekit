@@ -57,8 +57,8 @@ def lovekit(
             link=LovekitLinkComposition(
                 auth=FaktsAuthLink(token_loader=tokens),
                 split=SplitLink(
-                    left=AIOHttpLink(endpoint_url=lovekit.to_http_path("graphql"), proxy=lovekit.proxy),
-                    right=GraphQLWSLink(ws_endpoint_url=lovekit.to_ws_path("graphql"), proxy=lovekit.proxy),
+                    left=AIOHttpLink(endpoint_url=lovekit.to_http_path("graphql"), proxy=lovekit.proxy, ssl_context=lovekit.ssl_context()),
+                    right=GraphQLWSLink(ws_endpoint_url=lovekit.to_ws_path("graphql"), proxy=lovekit.proxy, ssl_context=lovekit.ssl_context()),
                     split=lambda o: o.node.operation != OperationType.SUBSCRIPTION,
                 ),
             )

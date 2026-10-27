@@ -307,7 +307,9 @@ enum Ordering {
 
 type Organization @key(fields: "id", resolvable: true) {
   id: ID!
-  slug: String!
+
+  """The organization across issuers and services: `<issuer>#<org>`"""
+  identifier: String!
 }
 
 type Query {

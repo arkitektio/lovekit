@@ -238,57 +238,57 @@ type Mutation {
   """
   Create an empty collaboration, to put agents and streams in and grant a guest
   """
-  createCollaboration(input: CreateCollaborationInput!): Collaboration! @auth(any_role_of: ["admin", "editor"])
+  createCollaboration(input: CreateCollaborationInput!): Collaboration! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
 
   """
   Put an agent or a stream in a collaboration: an agent brings every stream it offers
   """
-  addToCollaboration(input: CollaborationObjectInput!): Collaboration! @auth(any_role_of: ["admin", "editor"])
+  addToCollaboration(input: CollaborationObjectInput!): Collaboration! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
 
   """Take an agent or a stream out of a collaboration"""
-  removeFromCollaboration(input: CollaborationObjectInput!): Collaboration! @auth(any_role_of: ["admin", "editor"])
+  removeFromCollaboration(input: CollaborationObjectInput!): Collaboration! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
 
   """
   Delete a collaboration: whoever was granted it sees nothing of it any more
   """
-  deleteCollaboration(id: ID!): ID! @auth(any_role_of: ["admin", "editor"])
+  deleteCollaboration(id: ID!): ID! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
 
   """
   Offer exactly these streams as the caller's agent: undeclared ones are removed, unchanged ones untouched
   """
-  declareStreams(input: DeclareStreamsInput!): [Stream!]!
+  declareStreams(input: DeclareStreamsInput!): [Stream!]! @auth(required_scopes: ["lovekit_publish"], any_role_of: ["lovekit_editor"])
 
   """
   A token for the caller's agent to publish its streams; a newer connection replaces an older one
   """
-  publishToken: String!
+  publishToken: String! @auth(required_scopes: ["lovekit_publish"], any_role_of: ["lovekit_editor"])
 
   """
   A token to watch a stream: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations
   """
-  watchStream(input: WatchStreamInput!): String! @auth(allow_scoped: true)
+  watchStream(input: WatchStreamInput!): String! @auth(required_scopes: ["lovekit_watch"], allow_scoped: true)
 
   """
   A token to watch every stream of an agent. A guest needs the agent in one of their collaborations
   """
-  watchAgent(input: WatchAgentInput!): String! @auth(allow_scoped: true)
+  watchAgent(input: WatchAgentInput!): String! @auth(required_scopes: ["lovekit_watch"], allow_scoped: true)
 
   """The live call about these structures, or a new one"""
-  ensureCall(input: EnsureCallInput!): Call!
+  ensureCall(input: EnsureCallInput!): Call! @auth(required_scopes: ["lovekit_call"], any_role_of: ["lovekit_editor"])
 
   """
   Turn a call to these structures: they become what it is about last, and what it was about stays
   """
-  addToCall(input: AddToCallInput!): Call!
+  addToCall(input: AddToCallInput!): Call! @auth(required_scopes: ["lovekit_call"], any_role_of: ["lovekit_editor"])
 
   """Join a call and return the token for it"""
-  joinCall(input: JoinCallInput!): String!
+  joinCall(input: JoinCallInput!): String! @auth(required_scopes: ["lovekit_call"], any_role_of: ["lovekit_editor"])
 
   """Ask users into a call; their open apps ring"""
-  inviteToCall(input: InviteToCallInput!): Call!
+  inviteToCall(input: InviteToCallInput!): Call! @auth(required_scopes: ["lovekit_call"], any_role_of: ["lovekit_editor"])
 
   """Put an invitation away, on every device"""
-  dismissCallInvite(input: DismissCallInviteInput!): ID!
+  dismissCallInvite(input: DismissCallInviteInput!): ID! @auth(required_scopes: ["lovekit_call"], any_role_of: ["lovekit_editor"])
 }
 
 input OffsetPaginationInput {
@@ -319,33 +319,33 @@ type Query {
   """
   The streams of the organization's agents; filter `live` for the ones being published
   """
-  streams(filters: StreamFilter, order: StreamOrder, pagination: OffsetPaginationInput): [Stream!]!
+  streams(filters: StreamFilter, order: StreamOrder, pagination: OffsetPaginationInput): [Stream!]! @auth(required_scopes: ["lovekit_watch"])
 
   """The organization's agents that offer streams"""
-  agents(filters: AgentFilter, pagination: OffsetPaginationInput): [Agent!]!
+  agents(filters: AgentFilter, pagination: OffsetPaginationInput): [Agent!]! @auth(required_scopes: ["lovekit_watch"])
 
   """The organization's calls; filter `live` for the ones in progress"""
-  calls(filters: CallFilter, order: CallOrder, pagination: OffsetPaginationInput): [Call!]!
+  calls(filters: CallFilter, order: CallOrder, pagination: OffsetPaginationInput): [Call!]! @auth(required_scopes: ["lovekit_watch"])
 
   """
   List the organization's collaborations: what a guest granted one sees of it (a guest: the collaborations granted to them)
   """
-  collaborations: [Collaboration!]!
+  collaborations: [Collaboration!]! @auth(required_scopes: ["lovekit_watch"])
 
   """Get a single collaboration by ID"""
-  collaboration(id: ID!): Collaboration!
+  collaboration(id: ID!): Collaboration! @auth(required_scopes: ["lovekit_watch"])
 
   """Get a stream by ID"""
-  stream(id: ID!): Stream!
+  stream(id: ID!): Stream! @auth(required_scopes: ["lovekit_watch"])
 
   """Get an agent by ID"""
-  agent(id: ID!): Agent!
+  agent(id: ID!): Agent! @auth(required_scopes: ["lovekit_watch"])
 
   """Get a call by ID"""
-  call(id: ID!): Call!
+  call(id: ID!): Call! @auth(required_scopes: ["lovekit_watch"])
 
   """Your pending invitations to calls that are still live"""
-  myCallInvites: [CallInvite!]!
+  myCallInvites: [CallInvite!]! @auth(required_scopes: ["lovekit_watch"])
 }
 
 type Release @key(fields: "id", resolvable: true) {
@@ -465,15 +465,15 @@ type Subscription {
   """
   Streams your organization's agents declare, change and drop, as they do
   """
-  streams: StreamEvent!
+  streams: StreamEvent! @auth(required_scopes: ["lovekit_watch"])
 
   """Your invitations to calls as they arrive and go away"""
-  callInvites: CallInviteEvent!
+  callInvites: CallInviteEvent! @auth(required_scopes: ["lovekit_watch"])
 
   """
   The calls others start in your organization as they start, and any call's new topics
   """
-  calls: CallEvent!
+  calls: CallEvent! @auth(required_scopes: ["lovekit_watch"])
 }
 
 type User @key(fields: "id", resolvable: true) {

@@ -18,6 +18,7 @@ from arkitekt_spec.declare.app import AppRegistry
 from arkitekt_spec.declare.widgets import SearchWidget
 
 from lovekit.api.schema import (
+    SCOPES,
     Agent,
     SearchAgentsQuery,
     SearchStreamsQuery,
@@ -31,7 +32,7 @@ registry = AppRegistry()
 """What lovekit brings to an app: its service, and the types it can send by id."""
 
 
-@registry.service()
+@registry.service(scopes=SCOPES)
 def lovekit(
     lovekit: Annotated[
         Alias,

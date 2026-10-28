@@ -45,6 +45,7 @@ projects:
               ID: rath.scalars.IDCoercible
             expand_input_types:
               - input
+          - type: turms.plugins.scopes.ScopesPlugin
         processors:
           - type: turms.processors.black.BlackProcessor
         scalar_definitions:

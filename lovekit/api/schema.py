@@ -793,5 +793,6 @@ class LovekitApi:
         return self.execute(ListStreamsQuery, variables).streams
 
 
+SCOPES: list[str] = ["lovekit_publish", "lovekit_watch"]
 DeclareStreamsInput.model_rebuild()
 StreamFilter.model_rebuild()

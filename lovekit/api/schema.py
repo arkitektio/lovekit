@@ -432,6 +432,8 @@ class LovekitApi:
     Each method hands its operation to ``execute``, ``aexecute``, ``subscribe``, ``asubscribe`` of ``self``, which the class this one is mixed into (or a base of it) provides.
     """
 
+    __scopes__: ClassVar[tuple[str, ...]] = ("lovekit_publish", "lovekit_watch")
+
     async def adeclare_streams(
         self, streams: Iterable[StreamDeclarationInput]
     ) -> tuple[Stream, ...]:
@@ -793,6 +795,5 @@ class LovekitApi:
         return self.execute(ListStreamsQuery, variables).streams
 
 
-SCOPES: list[str] = ["lovekit_publish", "lovekit_watch"]
 DeclareStreamsInput.model_rebuild()
 StreamFilter.model_rebuild()

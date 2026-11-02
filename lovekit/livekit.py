@@ -15,7 +15,7 @@ address (LiveKit ``rtc.node_ip``) on its UDP port (``rtc.udp_port``), and the
 mesh ACLs must let this node reach both ports.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from fakts import Alias
 
@@ -68,7 +68,7 @@ def _path(alias: Alias) -> str:
     return f"/{path}" if path else ""
 
 
-async def aconnect_room(alias: Alias, token: str, room: Optional[Any] = None) -> Any:
+async def aconnect_room(alias: Alias, token: str, room: Any | None = None) -> Any:
     """Connect ``room`` (a new ``livekit.rtc.Room`` by default) with
     :func:`aroom_options`, and return it."""
     from livekit import rtc

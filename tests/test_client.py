@@ -5,7 +5,8 @@ No server: the rath is a fake returning canned data.
 
 import importlib
 from types import SimpleNamespace
-from typing import Any, AsyncIterator, Optional
+from typing import Any
+from collections.abc import AsyncIterator
 
 import pytest
 from koil import Koil
@@ -63,7 +64,7 @@ class GetBoundStream(BaseModel):
 
     class Arguments(BaseModel):
         id: str
-        note: Optional[str] = None
+        note: str | None = None
 
     class Meta:
         document = "query GetStream($id: ID!) { stream(id: $id) { id } }"

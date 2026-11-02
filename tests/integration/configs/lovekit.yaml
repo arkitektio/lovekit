@@ -28,6 +28,9 @@ authentikate:
     test:
       sub: 1
       iss: lok
+      # lovekit asks every root field for a scope and every write for a role.
+      scope: openid lovekit_all
+      roles: [lovekit_admin]
       active_org: org
 redis:
   dependency: redis

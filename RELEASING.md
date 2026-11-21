@@ -6,8 +6,8 @@ the version by hand. A push to a release branch runs
 `.github/workflows/release.yaml`, which:
 
 1. runs the test suite,
-2. computes the next version from the commit history, bumps `pyproject.toml`,
-   updates `CHANGELOG.md`, tags `vX.Y.Z`, and cuts a GitHub Release,
+2. computes the next version from the commit history, tags `vX.Y.Z`, and cuts a
+   GitHub Release,
 3. builds the wheel and, **only if a release was cut**, uploads it to PyPI via
    trusted publishing (OIDC).
 

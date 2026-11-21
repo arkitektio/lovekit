@@ -61,6 +61,64 @@ type App @key(fields: "id", resolvable: true) {
   identifier: String!
 }
 
+"""One axis of a data stream's frames"""
+type Axis {
+  name: String!
+  type: AxisType!
+}
+
+"""
+One axis of a data stream's frames: its name and its semantic kind. Units belong to a calibration
+"""
+input AxisInput {
+  """The name of the axis, e.g. 'wavelength'"""
+  name: String!
+
+  """The semantic kind of the axis"""
+  type: AxisType!
+}
+
+"""The semantic kind of an axis, as mikro's coordinate systems name them"""
+enum AxisType {
+  SPACE
+  TIME
+  CHANNEL
+  COORDINATE
+  DISPLACEMENT
+  MICROTIME
+  SPECTRUM
+  INDEX
+  VALUE
+  CATEGORY
+}
+
+"""
+What a step along one axis measures: position = offset + scale * index, in unit
+"""
+type Calibration {
+  axis: String!
+  unit: String!
+  scale: Float!
+  offset: Float!
+}
+
+"""
+What a step along one axis measures: position = offset + scale * index, in unit
+"""
+input CalibrationInput {
+  """The name of the axis this calibrates"""
+  axis: String!
+
+  """The unit of the calibrated position, e.g. 'nm'"""
+  unit: String!
+
+  """The step between two neighbouring values"""
+  scale: Float! = 1
+
+  """The position of the first value"""
+  offset: Float! = 0
+}
+
 type Call {
   id: ID!
   title: String!
@@ -191,10 +249,64 @@ input CollaborationObjectInput {
   object: ID!
 }
 
+"""
+What it takes to reach an agent's streams or a call: the carrier, and what lets the caller in. Where the carrier is, the client knows from its own configuration
+"""
+type Connection {
+  transport: Transport!
+
+  """What lets the caller in: for LIVEKIT, the access token of its room"""
+  credential: String!
+}
+
 """A new collaboration"""
 input CreateCollaborationInput {
   name: String!
   description: String = null
+}
+
+"""What every frame of a data stream holds"""
+type DataFormat {
+  """The type of one value, as numpy names it"""
+  dtype: String!
+  shape: [Int!]!
+
+  """One axis per dimension of the shape, in its order"""
+  axes: [Axis!]!
+  calibration: [Calibration!]!
+
+  """The unit of the values themselves"""
+  unit: String
+
+  """
+  The space the axes are in, named as mikro names a coordinate system's reference
+  """
+  reference: String
+}
+
+"""What every frame of a data stream holds"""
+input DataFormatInput {
+  """
+  The type of one value, as numpy names it: uint8, int16, float16, float32, ...
+  """
+  dtype: String!
+
+  """The shape of one frame; a frame is at most 1024 bytes"""
+  shape: [Int!]!
+
+  """One axis per dimension of the shape, in its order"""
+  axes: [AxisInput!]!
+
+  """The axes that measure something, and what"""
+  calibration: [CalibrationInput!]! = []
+
+  """The unit of the values themselves, e.g. 'counts'"""
+  unit: String = null
+
+  """
+  The space the axes are in, named as mikro names a coordinate system's reference: stored data of the same reference is in the same space
+  """
+  reference: String = null
 }
 
 """Date with time (isoformat)"""
@@ -259,19 +371,19 @@ type Mutation {
   declareStreams(input: DeclareStreamsInput!): [Stream!]! @auth(required_scopes: ["lovekit_publish"], any_role_of: ["lovekit_editor"])
 
   """
-  A token for the caller's agent to publish its streams; a newer connection replaces an older one
+  What the caller's agent publishes its streams with; a newer connection replaces an older one
   """
-  publishToken: String! @auth(required_scopes: ["lovekit_publish"], any_role_of: ["lovekit_editor"])
+  publisherConnection: Connection! @auth(required_scopes: ["lovekit_publish"], any_role_of: ["lovekit_editor"])
 
   """
-  A token to watch a stream: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations
+  What a stream is watched with: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations
   """
-  watchStream(input: WatchStreamInput!): String! @auth(required_scopes: ["lovekit_watch"], allow_scoped: true)
+  watchStream(input: WatchStreamInput!): Connection! @auth(required_scopes: ["lovekit_watch"], allow_scoped: true)
 
   """
-  A token to watch every stream of an agent. A guest needs the agent in one of their collaborations
+  What every stream of an agent is watched with. A guest needs the agent in one of their collaborations
   """
-  watchAgent(input: WatchAgentInput!): String! @auth(required_scopes: ["lovekit_watch"], allow_scoped: true)
+  watchAgent(input: WatchAgentInput!): Connection! @auth(required_scopes: ["lovekit_watch"], allow_scoped: true)
 
   """The live call about these structures, or a new one"""
   ensureCall(input: EnsureCallInput!): Call! @auth(required_scopes: ["lovekit_call"], any_role_of: ["lovekit_editor"])
@@ -281,8 +393,8 @@ type Mutation {
   """
   addToCall(input: AddToCallInput!): Call! @auth(required_scopes: ["lovekit_call"], any_role_of: ["lovekit_editor"])
 
-  """Join a call and return the token for it"""
-  joinCall(input: JoinCallInput!): String! @auth(required_scopes: ["lovekit_call"], any_role_of: ["lovekit_editor"])
+  """Join a call: what its room is reached with"""
+  joinCall(input: JoinCallInput!): Connection! @auth(required_scopes: ["lovekit_call"], any_role_of: ["lovekit_editor"])
 
   """Ask users into a call; their open apps ring"""
   inviteToCall(input: InviteToCallInput!): Call! @auth(required_scopes: ["lovekit_call"], any_role_of: ["lovekit_editor"])
@@ -354,7 +466,9 @@ type Release @key(fields: "id", resolvable: true) {
   version: String!
 }
 
-"""One live source an agent offers: a camera, a detector, a microphone"""
+"""
+One live source an agent offers: a camera, a detector, a microphone, a spectrometer
+"""
 type Stream @identified(by: "@lovekit/stream") {
   id: ID!
 
@@ -373,6 +487,9 @@ type Stream @identified(by: "@lovekit/stream") {
   """
   descriptors: JSON!
 
+  """What a frame holds; only a data stream has one."""
+  format: DataFormat
+
   """
   Whether the agent publishes this stream right now: LiveKit's answer, asked when read.
   """
@@ -389,11 +506,14 @@ input StreamDeclarationInput {
   """What the stream is called; the key when not given"""
   title: String = null
 
-  """Whether it is video or audio"""
+  """Whether it is video, audio or data"""
   kind: StreamKind! = VIDEO
 
   """What the stream shows"""
   description: String = null
+
+  """What a frame holds: needed for a data stream, refused for any other"""
+  format: DataFormatInput = null
 }
 
 """
@@ -442,6 +562,7 @@ input StreamFilter {
 enum StreamKind {
   VIDEO
   AUDIO
+  DATA
 }
 
 input StreamOrder @oneOf {
@@ -474,6 +595,11 @@ type Subscription {
   The calls others start in your organization as they start, and any call's new topics
   """
   calls: CallEvent! @auth(required_scopes: ["lovekit_watch"])
+}
+
+"""How a stream is carried from its agent to whoever watches"""
+enum Transport {
+  LIVEKIT
 }
 
 type User @key(fields: "id", resolvable: true) {

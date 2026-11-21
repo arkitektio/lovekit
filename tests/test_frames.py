@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from lovekit import to_rgba
+from lovekit import Axis, AxisType, DataStream, frames, to_rgba
 
 
 def detector_frame(height: int = 8, width: int = 6) -> np.ndarray:
@@ -36,3 +36,18 @@ def test_an_rgb_frame_gets_an_opaque_alpha_and_rgba_is_taken_as_it_is() -> None:
 def test_what_is_no_image_is_refused() -> None:
     with pytest.raises(ValueError):
         to_rgba(np.zeros((2, 2, 2, 2)))
+
+
+def test_a_data_frame_reads_back_as_it_was_sent() -> None:
+    values = np.linspace(0, 1, 512, dtype=np.float16)
+    packet = frames.encode(7, values)
+
+    assert len(packet) == frames.HEADER.size + 1024
+    frame = frames.decode(packet, "float16", (512,))
+    assert frame.sequence == 7 and frame.sent_at_us > 0
+    assert (frame.values == values).all()
+
+
+def test_a_data_stream_of_more_than_a_packet_is_refused() -> None:
+    with pytest.raises(ValueError, match="2048 bytes"):
+        DataStream("spectrum", dtype="float32", shape=(512,), axes=[Axis("wavelength", AxisType.SPECTRUM)])

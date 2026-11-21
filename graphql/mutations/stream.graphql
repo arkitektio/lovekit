@@ -4,14 +4,20 @@ mutation DeclareStreams($input: DeclareStreamsInput!) {
   }
 }
 
-mutation PublishToken {
-  publishToken
+mutation PublisherConnection {
+  publisherConnection {
+    ...Connection
+  }
 }
 
 mutation WatchStream($input: WatchStreamInput!) {
-  watchStream(input: $input)
+  watchStream(input: $input) {
+    ...Connection
+  }
 }
 
 mutation WatchAgent($input: WatchAgentInput!) {
-  watchAgent(input: $input)
+  watchAgent(input: $input) {
+    ...Connection
+  }
 }

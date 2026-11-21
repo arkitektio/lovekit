@@ -19,7 +19,7 @@ pip install lovekit   # or: pip install "arkitekt[rekuest,lovekit]"
 ## Usage
 
 Every lovekit operation is a method of the `Lovekit` client, in a blocking and
-an `a`-prefixed async flavour: `declare_streams`, `publish_token`, `watch_stream`,
+an `a`-prefixed async flavour: `declare_streams`, `publisher_connection`, `watch_stream`,
 `watch_agent`, `get_stream`, `is_stream_live`, `list_streams`, `get_agent`, ….
 
 ### Publishing streams
@@ -32,20 +32,54 @@ from lovekit import VideoStream, to_rgba
 async with lovekit.publish([VideoStream("camera", title="Main camera")]) as live:
     print(live.streams)                          # the declared streams (@lovekit/stream)
     while True:
-        await live["camera"].send(to_rgba(frame))  # (height, width, 4) uint8
+        await live.video("camera").send(to_rgba(frame))  # (height, width, 4) uint8
 ```
 
 - **The declaration is the app's whole set.** A stream keeps its id over restarts
   (it is found by its key), one the app no longer names is removed, and a restart
   that declares the same changes nothing. So a client publishes once at a time.
-- **Every stream is a track of the agent's LiveKit room, named by its key.** A track
-  is made on the first frame and again when the frame size changes; the last frame
-  is sent again while no new one comes, so a late viewer sees a picture.
-- **It stays live.** When the room drops it is joined again (fresh token, backoff) and
-  every track published again. When another process of the same agent connects, or
+- **Every stream is a track named by its key**, carried by the transport lovekit names
+  (today LiveKit: the agent's room). A video track is made on the first frame and again
+  when the frame size changes; the last frame is sent again while no new one comes, so a
+  late viewer sees a picture.
+- **It stays live.** When the connection drops it is joined again (a fresh one, backoff)
+  and every track published again. When another process of the same agent connects, or
   the participant is removed, this one stops for good (`live.stopped`,
   `await live.wait_stopped()`) instead of taking the room back.
 - **Audio** is an `AudioStream("microphone")`, sent int16 samples.
+
+### Data streams
+
+A data stream carries small arrays that change fast: a spectrum, a trace, a profile.
+
+```python
+from lovekit import Axis, AxisType, Calibration, DataStream
+
+spectrum = DataStream(
+    "spectrum",
+    dtype="float16",
+    shape=(512,),
+    axes=[Axis("wavelength", AxisType.SPECTRUM)],
+    calibration=[Calibration("wavelength", unit="nm", scale=0.78, offset=400.0)],
+    unit="counts",
+)
+
+async with lovekit.publish([spectrum]) as live:
+    feed = live.data("spectrum")
+    while True:
+        await feed.wait_watched()                       # nobody watching: nothing to measure
+        await feed.send(read().astype("float16"))
+```
+
+- **A frame is one array of the declared dtype and shape, at most 1024 bytes**
+  (512 float16 values, 256 float32). Decimate to what a plot shows; keep the full
+  measurement elsewhere.
+- **It is lossy and holds one value.** `send` never queues: a frame is sent, or it is
+  the one that waits (for `max_rate`, or for the connection), and a newer one replaces it.
+- **The axes are named as mikro's coordinate systems name theirs** (name and semantic
+  type); what an axis measures is its `Calibration`, and `reference` names the space,
+  so a stored spectrum of the same reference is in the same one.
+- **`watched`** is never false while someone watches; it may be true when nobody does.
 
 ### In an arkitekt app
 
@@ -94,8 +128,9 @@ Streams and agents travel between actions by id (`@lovekit/stream`,
 
 ### Watching
 
-`watch_stream(stream)` and `watch_agent(agent)` return a token that may subscribe in
-the agent's room, but not publish; the stream is the track named by its `key`.
+`watch_stream(stream)` and `watch_agent(agent)` return a connection (its transport and
+a credential) that may subscribe to the agent's streams, but not publish; the stream is
+the track named by its `key`. A data frame is read with `lovekit.frames.decode`.
 `is_stream_live(stream)` says whether it is published right now.
 
 ## Development

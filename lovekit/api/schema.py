@@ -35,12 +35,86 @@ class UnsetType:
 UNSET = UnsetType()
 
 
+class AxisType(str, Enum):
+    """The semantic kind of an axis, as mikro's coordinate systems name them"""
+
+    SPACE = "SPACE"
+    TIME = "TIME"
+    CHANNEL = "CHANNEL"
+    COORDINATE = "COORDINATE"
+    DISPLACEMENT = "DISPLACEMENT"
+    MICROTIME = "MICROTIME"
+    SPECTRUM = "SPECTRUM"
+    INDEX = "INDEX"
+    VALUE = "VALUE"
+    CATEGORY = "CATEGORY"
+    __str__ = str.__str__
+
+
 class StreamKind(str, Enum):
     """What a stream carries"""
 
     VIDEO = "VIDEO"
     AUDIO = "AUDIO"
+    DATA = "DATA"
     __str__ = str.__str__
+
+
+class Transport(str, Enum):
+    """How a stream is carried from its agent to whoever watches"""
+
+    LIVEKIT = "LIVEKIT"
+    __str__ = str.__str__
+
+
+class AxisInput(BaseModel):
+    """One axis of a data stream's frames: its name and its semantic kind. Units belong to a calibration"""
+
+    name: str = Field(description="The name of the axis, e.g. 'wavelength'")
+    type: AxisType = Field(description="The semantic kind of the axis")
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class CalibrationInput(BaseModel):
+    """What a step along one axis measures: position = offset + scale * index, in unit"""
+
+    axis: str = Field(description="The name of the axis this calibrates")
+    unit: str = Field(description="The unit of the calibrated position, e.g. 'nm'")
+    scale: Annotated[float | None, GraphQLDefault("1.0")] = Field(
+        default=None, description="The step between two neighbouring values"
+    )
+    "The step between two neighbouring values\nDefault: 1.0"
+    offset: Annotated[float | None, GraphQLDefault("0.0")] = Field(
+        default=None, description="The position of the first value"
+    )
+    "The position of the first value\nDefault: 0.0"
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class DataFormatInput(BaseModel):
+    """What every frame of a data stream holds"""
+
+    dtype: str = Field(
+        description="The type of one value, as numpy names it: uint8, int16, float16, float32, ..."
+    )
+    shape: tuple[int, ...] = Field(
+        description="The shape of one frame; a frame is at most 1024 bytes"
+    )
+    axes: tuple[AxisInput, ...] = Field(
+        description="One axis per dimension of the shape, in its order"
+    )
+    calibration: Annotated[
+        tuple[CalibrationInput, ...] | None, GraphQLDefault("[]")
+    ] = Field(default=None, description="The axes that measure something, and what")
+    "The axes that measure something, and what\nDefault: []"
+    unit: str | None = Field(
+        default=None, description="The unit of the values themselves, e.g. 'counts'"
+    )
+    reference: str | None = Field(
+        default=None,
+        description="The space the axes are in, named as mikro names a coordinate system's reference: stored data of the same reference is in the same space",
+    )
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 class DeclareStreamsInput(BaseModel):
@@ -69,10 +143,14 @@ class StreamDeclarationInput(BaseModel):
         default=None, description="What the stream is called; the key when not given"
     )
     kind: Annotated[StreamKind | None, GraphQLDefault("VIDEO")] = Field(
-        default=None, description="Whether it is video or audio"
+        default=None, description="Whether it is video, audio or data"
     )
-    "Whether it is video or audio\nDefault: VIDEO"
+    "Whether it is video, audio or data\nDefault: VIDEO"
     description: str | None = Field(default=None, description="What the stream shows")
+    format: DataFormatInput | None = Field(
+        default=None,
+        description="What a frame holds: needed for a data stream, refused for any other",
+    )
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
@@ -135,6 +213,73 @@ class WatchStreamInput(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
+class Connection(BaseModel):
+    """What it takes to reach an agent's streams or a call: the carrier, and what lets the caller in. Where the carrier is, the client knows from its own configuration"""
+
+    typename: Literal["Connection"] = Field(
+        alias="__typename", default="Connection", exclude=True
+    )
+    transport: Transport
+    credential: str
+    "What lets the caller in: for LIVEKIT, the access token of its room"
+    model_config = ConfigDict(frozen=True)
+
+    class Meta:
+        """Meta class for Connection"""
+
+        document = "fragment Connection on Connection {\n  transport\n  credential\n  __typename\n}"
+        name = "Connection"
+        type = "Connection"
+
+
+class DataFormatAxes(BaseModel):
+    """One axis of a data stream's frames"""
+
+    typename: Literal["Axis"] = Field(alias="__typename", default="Axis", exclude=True)
+    name: str
+    type: AxisType
+    model_config = ConfigDict(frozen=True)
+
+
+class DataFormatCalibration(BaseModel):
+    """What a step along one axis measures: position = offset + scale * index, in unit"""
+
+    typename: Literal["Calibration"] = Field(
+        alias="__typename", default="Calibration", exclude=True
+    )
+    axis: str
+    unit: str
+    scale: float
+    offset: float
+    model_config = ConfigDict(frozen=True)
+
+
+class DataFormat(BaseModel):
+    """What every frame of a data stream holds"""
+
+    typename: Literal["DataFormat"] = Field(
+        alias="__typename", default="DataFormat", exclude=True
+    )
+    dtype: str
+    "The type of one value, as numpy names it"
+    shape: tuple[int, ...]
+    unit: str | None = Field(default=None)
+    "The unit of the values themselves"
+    reference: str | None = Field(default=None)
+    "The space the axes are in, named as mikro names a coordinate system's reference"
+    axes: tuple[DataFormatAxes, ...]
+    "One axis per dimension of the shape, in its order"
+    calibration: tuple[DataFormatCalibration, ...]
+    model_config = ConfigDict(frozen=True)
+
+    class Meta:
+        """Meta class for DataFormat"""
+
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}"
+        name = "DataFormat"
+        type = "DataFormat"
+
+
 class StreamAgent(BaseModel):
     """An app instance that owns live streams: one per client, user and organization"""
 
@@ -149,7 +294,7 @@ class StreamAgent(BaseModel):
 
 
 class Stream(BaseModel):
-    """One live source an agent offers: a camera, a detector, a microphone"""
+    """One live source an agent offers: a camera, a detector, a microphone, a spectrometer"""
 
     __identifier__: ClassVar[Literal["@lovekit/stream"]] = "@lovekit/stream"
     typename: Literal["Stream"] = Field(
@@ -161,13 +306,15 @@ class Stream(BaseModel):
     title: str
     kind: StreamKind
     description: str | None = Field(default=None)
+    format: DataFormat | None = Field(default=None)
+    "What a frame holds; only a data stream has one."
     agent: StreamAgent
     model_config = ConfigDict(frozen=True)
 
     class Meta:
         """Meta class for Stream"""
 
-        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}"
         name = "Stream"
         type = "Stream"
 
@@ -211,7 +358,7 @@ class Agent(BaseModel):
     class Meta:
         """Meta class for Agent"""
 
-        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nfragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  streams {\n    ...Stream\n    __typename\n  }\n  __typename\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nfragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  streams {\n    ...Stream\n    __typename\n  }\n  __typename\n}"
         name = "Agent"
         type = "Agent"
 
@@ -230,31 +377,31 @@ class DeclareStreamsMutation(BaseModel):
     class Meta:
         """Meta class for DeclareStreams"""
 
-        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nmutation DeclareStreams($input: DeclareStreamsInput!) {\n  declareStreams(input: $input) {\n    ...Stream\n    __typename\n  }\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nmutation DeclareStreams($input: DeclareStreamsInput!) {\n  declareStreams(input: $input) {\n    ...Stream\n    __typename\n  }\n}"
 
 
-class PublishTokenMutation(BaseModel):
+class PublisherConnectionMutation(BaseModel):
     """No documentation found for this operation."""
 
-    publish_token: str = Field(alias="publishToken")
-    "A token for the caller's agent to publish its streams; a newer connection replaces an older one"
+    publisher_connection: Connection = Field(alias="publisherConnection")
+    "What the caller's agent publishes its streams with; a newer connection replaces an older one"
 
     class Arguments(BaseModel):
-        """Arguments for PublishToken"""
+        """Arguments for PublisherConnection"""
 
         pass
 
     class Meta:
-        """Meta class for PublishToken"""
+        """Meta class for PublisherConnection"""
 
-        document = "mutation PublishToken {\n  publishToken\n}"
+        document = "fragment Connection on Connection {\n  transport\n  credential\n  __typename\n}\n\nmutation PublisherConnection {\n  publisherConnection {\n    ...Connection\n    __typename\n  }\n}"
 
 
 class WatchStreamMutation(BaseModel):
     """No documentation found for this operation."""
 
-    watch_stream: str = Field(alias="watchStream")
-    "A token to watch a stream: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations"
+    watch_stream: Connection = Field(alias="watchStream")
+    "What a stream is watched with: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations"
 
     class Arguments(BaseModel):
         """Arguments for WatchStream"""
@@ -264,14 +411,14 @@ class WatchStreamMutation(BaseModel):
     class Meta:
         """Meta class for WatchStream"""
 
-        document = "mutation WatchStream($input: WatchStreamInput!) {\n  watchStream(input: $input)\n}"
+        document = "fragment Connection on Connection {\n  transport\n  credential\n  __typename\n}\n\nmutation WatchStream($input: WatchStreamInput!) {\n  watchStream(input: $input) {\n    ...Connection\n    __typename\n  }\n}"
 
 
 class WatchAgentMutation(BaseModel):
     """No documentation found for this operation."""
 
-    watch_agent: str = Field(alias="watchAgent")
-    "A token to watch every stream of an agent. A guest needs the agent in one of their collaborations"
+    watch_agent: Connection = Field(alias="watchAgent")
+    "What every stream of an agent is watched with. A guest needs the agent in one of their collaborations"
 
     class Arguments(BaseModel):
         """Arguments for WatchAgent"""
@@ -281,7 +428,7 @@ class WatchAgentMutation(BaseModel):
     class Meta:
         """Meta class for WatchAgent"""
 
-        document = "mutation WatchAgent($input: WatchAgentInput!) {\n  watchAgent(input: $input)\n}"
+        document = "fragment Connection on Connection {\n  transport\n  credential\n  __typename\n}\n\nmutation WatchAgent($input: WatchAgentInput!) {\n  watchAgent(input: $input) {\n    ...Connection\n    __typename\n  }\n}"
 
 
 class GetAgentQuery(BaseModel):
@@ -298,7 +445,7 @@ class GetAgentQuery(BaseModel):
     class Meta:
         """Meta class for GetAgent"""
 
-        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nfragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  streams {\n    ...Stream\n    __typename\n  }\n  __typename\n}\n\nquery GetAgent($id: ID!) {\n  agent(id: $id) {\n    ...Agent\n    __typename\n  }\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nfragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  streams {\n    ...Stream\n    __typename\n  }\n  __typename\n}\n\nquery GetAgent($id: ID!) {\n  agent(id: $id) {\n    ...Agent\n    __typename\n  }\n}"
 
 
 class SearchAgentsQueryOptions(BaseModel):
@@ -346,11 +493,11 @@ class GetStreamQuery(BaseModel):
     class Meta:
         """Meta class for GetStream"""
 
-        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery GetStream($id: ID!) {\n  stream(id: $id) {\n    ...Stream\n    __typename\n  }\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery GetStream($id: ID!) {\n  stream(id: $id) {\n    ...Stream\n    __typename\n  }\n}"
 
 
 class IsStreamLiveQueryStream(BaseModel):
-    """One live source an agent offers: a camera, a detector, a microphone"""
+    """One live source an agent offers: a camera, a detector, a microphone, a spectrometer"""
 
     __identifier__: ClassVar[Literal["@lovekit/stream"]] = "@lovekit/stream"
     typename: Literal["Stream"] = Field(
@@ -379,7 +526,7 @@ class IsStreamLiveQuery(BaseModel):
 
 
 class SearchStreamsQueryOptions(BaseModel):
-    """One live source an agent offers: a camera, a detector, a microphone"""
+    """One live source an agent offers: a camera, a detector, a microphone, a spectrometer"""
 
     __identifier__: ClassVar[Literal["@lovekit/stream"]] = "@lovekit/stream"
     typename: Literal["Stream"] = Field(
@@ -423,7 +570,7 @@ class ListStreamsQuery(BaseModel):
     class Meta:
         """Meta class for ListStreams"""
 
-        document = "fragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {\n  streams(filters: $filter, pagination: $pagination) {\n    ...Stream\n    __typename\n  }\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {\n  streams(filters: $filter, pagination: $pagination) {\n    ...Stream\n    __typename\n  }\n}"
 
 
 class LovekitApi:
@@ -472,42 +619,44 @@ class LovekitApi:
         variables["input"] = _input
         return self.execute(DeclareStreamsMutation, variables).declare_streams
 
-    async def apublish_token(self) -> str:
-        """PublishToken
+    async def apublisher_connection(self) -> Connection:
+        """PublisherConnection
 
-        A token for the caller's agent to publish its streams; a newer connection replaces an older one
-
-        Args:
-
-        Returns:
-            str
-        """
-        variables: dict[str, builtins.object] = {}
-        return (await self.aexecute(PublishTokenMutation, variables)).publish_token
-
-    def publish_token(self) -> str:
-        """PublishToken
-
-        A token for the caller's agent to publish its streams; a newer connection replaces an older one
+        What the caller's agent publishes its streams with; a newer connection replaces an older one
 
         Args:
 
         Returns:
-            str
+            Connection
         """
         variables: dict[str, builtins.object] = {}
-        return self.execute(PublishTokenMutation, variables).publish_token
+        return (
+            await self.aexecute(PublisherConnectionMutation, variables)
+        ).publisher_connection
 
-    async def awatch_stream(self, stream: IDCoercible) -> str:
+    def publisher_connection(self) -> Connection:
+        """PublisherConnection
+
+        What the caller's agent publishes its streams with; a newer connection replaces an older one
+
+        Args:
+
+        Returns:
+            Connection
+        """
+        variables: dict[str, builtins.object] = {}
+        return self.execute(PublisherConnectionMutation, variables).publisher_connection
+
+    async def awatch_stream(self, stream: IDCoercible) -> Connection:
         """WatchStream
 
-        A token to watch a stream: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations
+        What a stream is watched with: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations
 
         Args:
             stream: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
 
         Returns:
-            str
+            Connection
         """
         variables: dict[str, builtins.object] = {}
         _input: dict[str, builtins.object] = {}
@@ -515,16 +664,16 @@ class LovekitApi:
         variables["input"] = _input
         return (await self.aexecute(WatchStreamMutation, variables)).watch_stream
 
-    def watch_stream(self, stream: IDCoercible) -> str:
+    def watch_stream(self, stream: IDCoercible) -> Connection:
         """WatchStream
 
-        A token to watch a stream: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations
+        What a stream is watched with: its agent's room, where it is the track named by its key. A guest needs the agent in one of their collaborations
 
         Args:
             stream: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
 
         Returns:
-            str
+            Connection
         """
         variables: dict[str, builtins.object] = {}
         _input: dict[str, builtins.object] = {}
@@ -532,16 +681,16 @@ class LovekitApi:
         variables["input"] = _input
         return self.execute(WatchStreamMutation, variables).watch_stream
 
-    async def awatch_agent(self, agent: IDCoercible) -> str:
+    async def awatch_agent(self, agent: IDCoercible) -> Connection:
         """WatchAgent
 
-        A token to watch every stream of an agent. A guest needs the agent in one of their collaborations
+        What every stream of an agent is watched with. A guest needs the agent in one of their collaborations
 
         Args:
             agent: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
 
         Returns:
-            str
+            Connection
         """
         variables: dict[str, builtins.object] = {}
         _input: dict[str, builtins.object] = {}
@@ -549,16 +698,16 @@ class LovekitApi:
         variables["input"] = _input
         return (await self.aexecute(WatchAgentMutation, variables)).watch_agent
 
-    def watch_agent(self, agent: IDCoercible) -> str:
+    def watch_agent(self, agent: IDCoercible) -> Connection:
         """WatchAgent
 
-        A token to watch every stream of an agent. A guest needs the agent in one of their collaborations
+        What every stream of an agent is watched with. A guest needs the agent in one of their collaborations
 
         Args:
             agent: The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. (required)
 
         Returns:
-            str
+            Connection
         """
         variables: dict[str, builtins.object] = {}
         _input: dict[str, builtins.object] = {}

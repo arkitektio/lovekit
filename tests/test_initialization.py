@@ -22,6 +22,7 @@ def test_stream_kind_values() -> None:
     """The ``StreamKind`` enum exposes the expected members."""
     assert StreamKind.VIDEO.value == "VIDEO"
     assert StreamKind.AUDIO.value == "AUDIO"
+    assert StreamKind.DATA.value == "DATA"
 
 
 def test_stream_declaration_input_constructs() -> None:

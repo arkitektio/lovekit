@@ -14,7 +14,7 @@ from lovekit.api.schema import LovekitApi
 from lovekit.rath import LovekitRath
 
 if TYPE_CHECKING:
-    from lovekit.publish import AudioStream, LiveStreams, VideoStream
+    from lovekit.publish import Declaration, LiveStreams
 
 
 class Lovekit(Composition, LovekitApi):
@@ -35,12 +35,12 @@ class Lovekit(Composition, LovekitApi):
     the mesh node it is reached through."""
     _publisher: Any = PrivateAttr(default=None)
 
-    def publish(self, streams: "Iterable[VideoStream | AudioStream]") -> "LiveStreams":
+    def publish(self, streams: "Iterable[Declaration]") -> "LiveStreams":
         """Offer exactly these streams as this app's agent, and keep them published.
 
         ``async with lovekit.publish([VideoStream("camera")]) as live:`` declares them,
-        joins the agent's room (again, whenever it drops) and gives the tracks to send
-        to (``live["camera"]``). See :mod:`lovekit.publish`.
+        joins as the agent's publisher (again, whenever the connection drops) and gives the
+        tracks to send to (``live.video("camera")``). See :mod:`lovekit.publish`.
 
         The declaration is the agent's whole set, so a client publishes once at a time:
         a second ``publish`` while the first is open raises.
@@ -56,24 +56,6 @@ class Lovekit(Composition, LovekitApi):
     def _release_publisher(self, live: "LiveStreams") -> None:
         if self._publisher is live:
             self._publisher = None
-
-    async def aroom_options(self) -> tuple[str, Any]:
-        """The url and ``livekit.rtc.RoomOptions`` to connect a room with
-        (see :func:`lovekit.livekit.aroom_options`)."""
-        from lovekit.livekit import aroom_options
-
-        if self.livekit is None:
-            raise RuntimeError("this lovekit client was built without the livekit alias")
-        return await aroom_options(self.livekit)
-
-    async def aconnect_room(self, token: str, room: Any = None) -> Any:
-        """Connect a ``livekit.rtc.Room`` (new by default) to the media server,
-        through the mesh when it is only reachable there."""
-        from lovekit.livekit import aconnect_room
-
-        if self.livekit is None:
-            raise RuntimeError("this lovekit client was built without the livekit alias")
-        return await aconnect_room(self.livekit, token, room)
 
     def _serialize(
         self, operation: type[TOperation], variables: dict[str, Any]

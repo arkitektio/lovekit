@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 readme = "README.md"
 dependencies = [
     "aiohttp>=3.9.5,<4",
-    "livekit>=1.0",
+    "livekit>=1.1.12",
     # Frames are numpy arrays (lovekit.publish).
     "numpy>=1.26",
     "rath>=4.1.1",

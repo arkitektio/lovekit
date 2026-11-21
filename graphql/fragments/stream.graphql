@@ -1,9 +1,29 @@
+fragment DataFormat on DataFormat {
+  dtype
+  shape
+  unit
+  reference
+  axes {
+    name
+    type
+  }
+  calibration {
+    axis
+    unit
+    scale
+    offset
+  }
+}
+
 fragment Stream on Stream {
   id
   key
   title
   kind
   description
+  format {
+    ...DataFormat
+  }
   agent {
     id
     roomName

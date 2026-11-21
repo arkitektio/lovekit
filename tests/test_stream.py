@@ -11,11 +11,11 @@ from typing import TypeVar
 
 import numpy as np
 import pytest
-from livekit import api
+from livekit import api, rtc
 from livekit.protocol.room import DeleteRoomRequest, ListParticipantsRequest, RoomParticipantIdentity
 
-from lovekit import AudioStream, VideoStream
-from lovekit.api.schema import StreamDeclarationInput, StreamKind
+from lovekit import AudioStream, Axis, AxisType, Calibration, DataStream, VideoStream, frames
+from lovekit.api.schema import StreamDeclarationInput, StreamKind, Transport
 from lovekit.lovekit import Lovekit
 from tests.conftest import LIVEKIT_KEY, LIVEKIT_SECRET
 
@@ -57,7 +57,7 @@ async def test_declaring_without_publishing_offers_the_streams(lovekit: Lovekit)
     assert (await lovekit.aget_stream(streams[0].id)) == streams[0]
     agent = await lovekit.aget_agent(streams[0].agent.id)
     assert [s.key for s in agent.streams] == ["idle"]
-    assert isinstance(await lovekit.apublish_token(), str)
+    assert (await lovekit.apublisher_connection()).transport == Transport.LIVEKIT
 
 
 async def test_a_published_stream_is_live_and_comes_back_with_its_id(agent: Lovekit) -> None:
@@ -74,6 +74,45 @@ async def test_a_published_stream_is_live_and_comes_back_with_its_id(agent: Love
     # The app starts again: the same streams, the same ids.
     async with agent.publish(declared) as again:
         assert [s.id for s in again.streams] == first_ids
+
+
+async def test_a_data_stream_reaches_who_watches_it(agent: Lovekit) -> None:
+    spectrum = DataStream(
+        "spectrum",
+        dtype="float16",
+        shape=(512,),
+        axes=[Axis("wavelength", AxisType.SPECTRUM)],
+        calibration=[Calibration("wavelength", unit="nm", scale=0.78, offset=400.0)],
+        unit="counts",
+    )
+    values = np.linspace(0, 1, 512, dtype=np.float16)
+    async with agent.publish([spectrum]) as live:
+        [stream] = live.streams
+        assert stream.kind == StreamKind.DATA
+        assert stream.format is not None and (stream.format.dtype, stream.format.shape) == ("float16", (512,))
+        await live.wait_connected(timeout=20)
+        feed = live.data("spectrum")
+        assert feed.watched is False
+        await feed.send(values)
+        assert await _eventually(lambda: _live(agent, stream.id), True) is True
+
+        # Someone watches: the agent's room, where the stream is the data track of its key.
+        assert agent.livekit is not None
+        watching = await agent.awatch_agent(stream.agent.id)
+        room = rtc.Room()
+        published: asyncio.Queue[rtc.RemoteDataTrack] = asyncio.Queue()
+        room.on("data_track_published", published.put_nowait)
+        await room.connect(f"ws://{agent.livekit.host}:{agent.livekit.port}", watching.credential, rtc.RoomOptions(auto_subscribe=False))
+        try:
+            track = await asyncio.wait_for(published.get(), 15)
+            assert track.info.name == "spectrum"
+            await asyncio.wait_for(feed.wait_watched(), 15)
+            # Nothing new is sent: the late viewer gets the last frame, sent again.
+            packet = await asyncio.wait_for(anext(aiter(track.subscribe())), 15)
+            frame = frames.decode(packet.payload, stream.format.dtype, stream.format.shape)
+            assert frame.sequence == 1 and (frame.values == values).all()
+        finally:
+            await room.disconnect()
 
 
 async def test_a_track_follows_the_frame_size(agent: Lovekit) -> None:

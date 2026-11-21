@@ -7,7 +7,7 @@ from livekit import rtc
 
 from arkitekt_spec.declare.wiring import MeshError
 from fakts import Alias
-from lovekit.livekit import aroom_options
+from lovekit.transports.livekit import aroom_options
 
 
 class FakeNode:

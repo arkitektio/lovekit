@@ -46,10 +46,9 @@ def lovekit(
     """Lovekit: live audio and video rooms.
 
     ``livekit`` is not dialled from here: the media server is reached by the
-    livekit SDK with a token this service hands out, not over GraphQL. The
-    client keeps the resolved alias -- which, for a media server only on the
-    mesh, carries the mesh node it is reached through -- so
-    ``lovekit.aconnect_room(token)`` can connect a room either way.
+    LiveKit transport with a credential this service hands out, not over GraphQL.
+    The client keeps the resolved alias, which for a media server only on the
+    mesh carries the mesh node it is reached through.
     """
     return Lovekit(
         livekit=livekit,

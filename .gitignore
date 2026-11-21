@@ -149,3 +149,6 @@ data
 *.token.temp
 *.fakts.yaml
 fakts.yaml
+
+# The server version the integration tests ran against, stamped into a release.
+lovekit/_tested.json

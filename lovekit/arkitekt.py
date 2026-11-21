@@ -15,6 +15,7 @@ from rath.links.graphql_ws import GraphQLWSLink
 from rath.links.split import SplitLink
 
 from arkitekt_spec.declare.app import AppRegistry
+from arkitekt_spec.declare.tested import tested_against
 from arkitekt_spec.declare.widgets import SearchWidget
 
 from lovekit.api.schema import (
@@ -31,11 +32,15 @@ registry = AppRegistry()
 """What lovekit brings to an app: its service, and the types it can send by id."""
 
 
+TESTED = tested_against("lovekit")
+"""The lovekit server this release wants: the one its release job tested it against."""
+
+
 @registry.service(image="jhnnsrs/lovekit:9")
 def lovekit(
     lovekit: Annotated[
         Alias,
-        Require("live.arkitekt.lovekit", "Where rooms and their tokens are managed"),
+        Require("live.arkitekt.lovekit", "Where rooms and their tokens are managed", version=TESTED),
     ],
     livekit: Annotated[
         Alias,

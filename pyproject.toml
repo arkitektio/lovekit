@@ -12,7 +12,7 @@ dependencies = [
     "numpy>=1.26",
     "rath>=4.1.1",
     # The service and structures are declared with arkitekt-spec.
-    "arkitekt-spec>=5.0",
+    "arkitekt-spec>=12.9",
     # The GraphQL-WS link the client subscribes through; it came through rekuest before.
     "websockets>=15.0.1",
     # The service wiring (Alias, Require, FaktsAuthLink); it came through rekuest before.
@@ -42,11 +42,15 @@ include = ["lovekit"]
 exclude = ["**/__pycache__", "tests"]
 typeCheckingMode = "standard"
 
+# `_tested.json` is written by the integration tests (the server version they ran against)
+# and is not in git: named as an artifact, on both, it is shipped all the same.
 [tool.hatch.build.targets.sdist]
 include = ["lovekit"]
+artifacts = ["lovekit/_tested.json"]
 
 [tool.hatch.build.targets.wheel]
 include = ["lovekit"]
+artifacts = ["lovekit/_tested.json"]
 
 
 [tool.ruff.lint]

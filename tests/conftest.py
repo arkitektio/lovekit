@@ -18,6 +18,7 @@ from lovekit.rath import (
 from graphql import OperationType
 from dataclasses import dataclass
 
+from arkitekt_spec.declare.tested import record_tested
 from fakts import Alias
 
 
@@ -157,6 +158,8 @@ def deployed_app(integration_ports: dict[str, int]) -> Generator[DeployedLovekit
         setup.run("initc", command="python init.py")
 
         setup.check_health()
+        # What a release of this client then says it was tested against.
+        record_tested("lovekit", f"http://localhost:{integration_ports['lovekit']}/ht")
 
         with lovekit as lovekit:
             yield DeployedLovekit(

@@ -51,3 +51,16 @@ def test_a_data_frame_reads_back_as_it_was_sent() -> None:
 def test_a_data_stream_of_more_than_a_packet_is_refused() -> None:
     with pytest.raises(ValueError, match="2048 bytes"):
         DataStream("spectrum", dtype="float32", shape=(512,), axes=[Axis("wavelength", AxisType.SPECTRUM)])
+
+
+#: One frame as it is on the wire: sequence 42, sent at 1795000000123456 us, float16 values
+#: 1, -2, 0.5 and 1024. Orkestrator's ``lovekit/streams/frame.test.ts`` reads the same bytes.
+GOLDEN = "010000002a000000401261018b600600003c00c000380064"
+
+
+def test_a_frame_is_read_as_every_client_reads_it() -> None:
+    frame = frames.decode(bytes.fromhex(GOLDEN), "float16", (4,))
+
+    assert (frame.sequence, frame.sent_at_us) == (42, 1_795_000_000_123_456)
+    assert frame.values.tolist() == [1.0, -2.0, 0.5, 1024.0]
+    assert frames.encode(42, frame.values)[:8] == bytes.fromhex(GOLDEN)[:8]

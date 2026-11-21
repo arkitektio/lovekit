@@ -6,7 +6,8 @@ server, and whether a stream is live is read back through lovekit, the way an ap
 """
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from typing import TypeVar
 
 import numpy as np
@@ -15,7 +16,7 @@ from livekit import api, rtc
 from livekit.protocol.room import DeleteRoomRequest, ListParticipantsRequest, RoomParticipantIdentity
 
 from lovekit import AudioStream, Axis, AxisType, Calibration, DataStream, VideoStream, frames
-from lovekit.api.schema import StreamDeclarationInput, StreamKind, Transport
+from lovekit.api.schema import Stream, StreamDeclarationInput, StreamKind, Transport
 from lovekit.lovekit import Lovekit
 from tests.conftest import LIVEKIT_KEY, LIVEKIT_SECRET
 
@@ -76,17 +77,46 @@ async def test_a_published_stream_is_live_and_comes_back_with_its_id(agent: Love
         assert [s.id for s in again.streams] == first_ids
 
 
-async def test_a_data_stream_reaches_who_watches_it(agent: Lovekit) -> None:
-    spectrum = DataStream(
+def _spectrum(max_rate: float = 30.0) -> DataStream:
+    return DataStream(
         "spectrum",
         dtype="float16",
         shape=(512,),
         axes=[Axis("wavelength", AxisType.SPECTRUM)],
         calibration=[Calibration("wavelength", unit="nm", scale=0.78, offset=400.0)],
         unit="counts",
+        max_rate=max_rate,
     )
+
+
+@asynccontextmanager
+async def _watching(agent: Lovekit, stream: Stream) -> AsyncIterator[AsyncIterator[frames.Frame]]:
+    """Someone watching a data stream: its frames, read from the data track of its key in the agent's room."""
+    assert agent.livekit is not None and stream.format is not None
+    connection = await agent.awatch_agent(stream.agent.id)
+    room = rtc.Room()
+    published: asyncio.Queue[rtc.RemoteDataTrack] = asyncio.Queue()
+    room.on("data_track_published", published.put_nowait)
+    await room.connect(f"ws://{agent.livekit.host}:{agent.livekit.port}", connection.credential, rtc.RoomOptions(auto_subscribe=False))
+    try:
+        track = await asyncio.wait_for(published.get(), 15)
+        assert track.info.name == stream.key
+
+        # Subscribed now, not at the first read: what is sent from here on is seen.
+        subscription = track.subscribe()
+
+        async def read() -> AsyncIterator[frames.Frame]:
+            async for packet in subscription:
+                yield frames.decode(packet.payload, stream.format.dtype, stream.format.shape)
+
+        yield read()
+    finally:
+        await room.disconnect()
+
+
+async def test_a_data_stream_reaches_who_watches_it(agent: Lovekit) -> None:
     values = np.linspace(0, 1, 512, dtype=np.float16)
-    async with agent.publish([spectrum]) as live:
+    async with agent.publish([_spectrum()]) as live:
         [stream] = live.streams
         assert stream.kind == StreamKind.DATA
         assert stream.format is not None and (stream.format.dtype, stream.format.shape) == ("float16", (512,))
@@ -96,23 +126,62 @@ async def test_a_data_stream_reaches_who_watches_it(agent: Lovekit) -> None:
         await feed.send(values)
         assert await _eventually(lambda: _live(agent, stream.id), True) is True
 
-        # Someone watches: the agent's room, where the stream is the data track of its key.
-        assert agent.livekit is not None
-        watching = await agent.awatch_agent(stream.agent.id)
-        room = rtc.Room()
-        published: asyncio.Queue[rtc.RemoteDataTrack] = asyncio.Queue()
-        room.on("data_track_published", published.put_nowait)
-        await room.connect(f"ws://{agent.livekit.host}:{agent.livekit.port}", watching.credential, rtc.RoomOptions(auto_subscribe=False))
-        try:
-            track = await asyncio.wait_for(published.get(), 15)
-            assert track.info.name == "spectrum"
+        async with _watching(agent, stream) as received:
             await asyncio.wait_for(feed.wait_watched(), 15)
             # Nothing new is sent: the late viewer gets the last frame, sent again.
-            packet = await asyncio.wait_for(anext(aiter(track.subscribe())), 15)
-            frame = frames.decode(packet.payload, stream.format.dtype, stream.format.shape)
+            frame = await asyncio.wait_for(anext(received), 15)
             assert frame.sequence == 1 and (frame.values == values).all()
+
+        # The viewer left: an app need not measure for nobody.
+        async def watched() -> bool:
+            return feed.watched
+
+        assert await _eventually(watched, False) is False
+
+
+async def test_a_data_stream_holds_one_value(agent: Lovekit) -> None:
+    """Sent faster than its rate, a stream skips: the value that waits is replaced, never queued."""
+    async with agent.publish([_spectrum(max_rate=2.0)]) as live:
+        [stream] = live.streams
+        await live.wait_connected(timeout=20)
+        feed = live.data("spectrum")
+        await feed.send(np.zeros(512, dtype=np.float16))
+        async with _watching(agent, stream) as received:
+            assert (await asyncio.wait_for(anext(received), 15)).sequence == 1
+
+            for level in (2.0, 3.0, 4.0):
+                await feed.send(np.full(512, level, dtype=np.float16))
+            seen: list[tuple[int, float]] = []
+            while not seen or seen[-1][0] != 4:
+                frame = await asyncio.wait_for(anext(received), 15)
+                seen.append((frame.sequence, float(frame.values[0])))
+            # The last one arrives, as it was sent. The one before it waited and was replaced:
+            # whether the second went out at once or waited too depends on when the first did.
+            assert seen[-1] == (4, 4.0)
+            assert 3 not in [sequence for sequence, _ in seen]
+
+
+async def test_a_data_stream_comes_back_with_its_last_value(agent: Lovekit) -> None:
+    values = np.arange(512, dtype=np.float16)
+    async with agent.publish([_spectrum()]) as live:
+        [stream] = live.streams
+        await live.wait_connected(timeout=20)
+        await live.data("spectrum").send(values)
+        assert await _eventually(lambda: _live(agent, stream.id), True) is True
+
+        # The room goes away under the agent: joined again, the track is there again.
+        client = _livekit(agent)
+        try:
+            await client.room.delete_room(DeleteRoomRequest(room=stream.agent.room_name))
         finally:
-            await room.disconnect()
+            await client.aclose()
+        assert await _eventually(lambda: _joins(live), 2, timeout=30) == 2
+        assert await _eventually(lambda: _live(agent, stream.id), True) is True
+
+        # Without the app sending anything new.
+        async with _watching(agent, stream) as received:
+            frame = await asyncio.wait_for(anext(received), 15)
+            assert frame.sequence == 1 and (frame.values == values).all()
 
 
 async def test_a_track_follows_the_frame_size(agent: Lovekit) -> None:

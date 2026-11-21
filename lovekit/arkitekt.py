@@ -31,7 +31,7 @@ registry = AppRegistry()
 """What lovekit brings to an app: its service, and the types it can send by id."""
 
 
-@registry.service()
+@registry.service(image="jhnnsrs/lovekit:9")
 def lovekit(
     lovekit: Annotated[
         Alias,

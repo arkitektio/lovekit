@@ -128,9 +128,20 @@ Streams and agents travel between actions by id (`@lovekit/stream`,
 
 ### Watching
 
-`watch_stream(stream)` and `watch_agent(agent)` return a connection (its transport and
-a credential) that may subscribe to the agent's streams, but not publish; the stream is
-the track named by its `key`. A data frame is read with `lovekit.frames.decode`.
+An app reads a data stream another app publishes with `lovekit.watch`:
+
+```python
+async with lovekit.watch(stream) as frames:
+    async for frame in frames:
+        plot(frame.values)   # an array as the stream declared it
+```
+
+It joins through whatever carries the stream, also over the mesh, and holds one value: a
+reader slower than the stream skips frames. The frames end when the stream goes away.
+
+Underneath, `watch_stream(stream)` and `watch_agent(agent)` return a connection (its
+transport and a credential) that may subscribe to the agent's streams, but not publish;
+the stream is the track named by its `key`.
 `is_stream_live(stream)` says whether it is published right now.
 
 ## Development

@@ -1,6 +1,6 @@
 """The core client for the lovekit service"""
 
-from collections.abc import AsyncGenerator, Generator, Iterable
+from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterable
 from typing import TYPE_CHECKING, Any
 
 from fakts import Alias
@@ -14,6 +14,10 @@ from lovekit.api.schema import LovekitApi
 from lovekit.rath import LovekitRath
 
 if TYPE_CHECKING:
+    from contextlib import AbstractAsyncContextManager
+
+    from lovekit.api.schema import Stream
+    from lovekit.frames import Frame
     from lovekit.publish import Declaration, LiveStreams
 
 
@@ -52,6 +56,16 @@ class Lovekit(Composition, LovekitApi):
         live = LiveStreams(self, declarations(streams))
         self._publisher = live
         return live
+
+    def watch(self, stream: "Stream") -> "AbstractAsyncContextManager[AsyncIterator[Frame]]":
+        """The frames of a data stream another app publishes.
+
+        ``async with lovekit.watch(stream) as frames:`` joins through whatever carries the
+        stream (also over the mesh) and gives its frames, newest only. See :mod:`lovekit.watch`.
+        """
+        from lovekit.watch import watch
+
+        return watch(self, stream)
 
     def _release_publisher(self, live: "LiveStreams") -> None:
         if self._publisher is live:

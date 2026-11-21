@@ -35,7 +35,6 @@ dev-dependencies =  [
     "websockets>=15.0.1",
     "basedpyright>=1.21",
     "livekit-api>=2.0",
-    "arkitekt-mesh>=0.15.1",
 ]
 
 [tool.basedpyright]
@@ -72,7 +71,6 @@ markers = [
     "composition: test composition",
     "external: test external",
     "integration: marks tests that require a deployment via dokker/docker-compose",
-    "mesh: marks tests that require the mesh lab (arkitekt-mesh testing/mesh-lab) with its LiveKit",
 ]
 
 

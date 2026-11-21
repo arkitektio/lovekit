@@ -25,7 +25,7 @@ mesh ACLs must let this node reach both ports.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -150,6 +150,38 @@ class Session:
     async def aclose(self) -> None:
         if self._room.isconnected():
             await self._room.disconnect()
+
+
+class Viewing:
+    """One joined room, as someone who watches."""
+
+    def __init__(self, room: rtc.Room, published: asyncio.Queue[rtc.RemoteDataTrack]) -> None:
+        self._room = room
+        self._published = published
+
+    async def data(self, key: str) -> AsyncIterator[bytes]:
+        """The frames of the data track named ``key``, newest only, until it is unpublished."""
+        while True:
+            track = await self._published.get()
+            if track.info.name == key:
+                break
+        async for frame in track.subscribe(buffer_size=1):
+            yield frame.payload
+
+    async def aclose(self) -> None:
+        if self._room.isconnected():
+            await self._room.disconnect()
+
+
+async def awatch(alias: Alias, credential: str) -> Viewing:
+    """Join the room ``credential`` is for, to watch: nothing is subscribed until asked for."""
+    room = rtc.Room()
+    published: asyncio.Queue[rtc.RemoteDataTrack] = asyncio.Queue()
+    room.on("data_track_published", published.put_nowait)
+    url, options = await aroom_options(alias)
+    options.auto_subscribe = False
+    await room.connect(url, credential, options)
+    return Viewing(room, published)
 
 
 async def ajoin(alias: Alias, credential: str, on_watchers: Callable[[int], None]) -> Session:

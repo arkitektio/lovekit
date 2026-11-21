@@ -6,17 +6,16 @@ server, and whether a stream is live is read back through lovekit, the way an ap
 """
 
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
 import numpy as np
 import pytest
-from livekit import api, rtc
+from livekit import api
 from livekit.protocol.room import DeleteRoomRequest, ListParticipantsRequest, RoomParticipantIdentity
 
-from lovekit import AudioStream, Axis, AxisType, Calibration, DataStream, VideoStream, frames
-from lovekit.api.schema import Stream, StreamDeclarationInput, StreamKind, Transport
+from lovekit import AudioStream, Axis, AxisType, Calibration, DataStream, VideoStream
+from lovekit.api.schema import StreamDeclarationInput, StreamKind, Transport
 from lovekit.lovekit import Lovekit
 from tests.conftest import LIVEKIT_KEY, LIVEKIT_SECRET
 
@@ -89,31 +88,6 @@ def _spectrum(max_rate: float = 30.0) -> DataStream:
     )
 
 
-@asynccontextmanager
-async def _watching(agent: Lovekit, stream: Stream) -> AsyncIterator[AsyncIterator[frames.Frame]]:
-    """Someone watching a data stream: its frames, read from the data track of its key in the agent's room."""
-    assert agent.livekit is not None and stream.format is not None
-    connection = await agent.awatch_agent(stream.agent.id)
-    room = rtc.Room()
-    published: asyncio.Queue[rtc.RemoteDataTrack] = asyncio.Queue()
-    room.on("data_track_published", published.put_nowait)
-    await room.connect(f"ws://{agent.livekit.host}:{agent.livekit.port}", connection.credential, rtc.RoomOptions(auto_subscribe=False))
-    try:
-        track = await asyncio.wait_for(published.get(), 15)
-        assert track.info.name == stream.key
-
-        # Subscribed now, not at the first read: what is sent from here on is seen.
-        subscription = track.subscribe()
-
-        async def read() -> AsyncIterator[frames.Frame]:
-            async for packet in subscription:
-                yield frames.decode(packet.payload, stream.format.dtype, stream.format.shape)
-
-        yield read()
-    finally:
-        await room.disconnect()
-
-
 async def test_a_data_stream_reaches_who_watches_it(agent: Lovekit) -> None:
     values = np.linspace(0, 1, 512, dtype=np.float16)
     async with agent.publish([_spectrum()]) as live:
@@ -126,7 +100,7 @@ async def test_a_data_stream_reaches_who_watches_it(agent: Lovekit) -> None:
         await feed.send(values)
         assert await _eventually(lambda: _live(agent, stream.id), True) is True
 
-        async with _watching(agent, stream) as received:
+        async with agent.watch(stream) as received:
             await asyncio.wait_for(feed.wait_watched(), 15)
             # Nothing new is sent: the late viewer gets the last frame, sent again.
             frame = await asyncio.wait_for(anext(received), 15)
@@ -146,7 +120,7 @@ async def test_a_data_stream_holds_one_value(agent: Lovekit) -> None:
         await live.wait_connected(timeout=20)
         feed = live.data("spectrum")
         await feed.send(np.zeros(512, dtype=np.float16))
-        async with _watching(agent, stream) as received:
+        async with agent.watch(stream) as received:
             assert (await asyncio.wait_for(anext(received), 15)).sequence == 1
 
             for level in (2.0, 3.0, 4.0):
@@ -179,7 +153,7 @@ async def test_a_data_stream_comes_back_with_its_last_value(agent: Lovekit) -> N
         assert await _eventually(lambda: _live(agent, stream.id), True) is True
 
         # Without the app sending anything new.
-        async with _watching(agent, stream) as received:
+        async with agent.watch(stream) as received:
             frame = await asyncio.wait_for(anext(received), 15)
             assert frame.sequence == 1 and (frame.values == values).all()
 

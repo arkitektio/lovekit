@@ -1,0 +1,106 @@
+{
+    "files": {
+        "./lovekit/arkitekt.py": [
+            {
+                "code": "reportGeneralTypeIssues",
+                "range": {
+                    "startColumn": 30,
+                    "endColumn": 42,
+                    "lineCount": 1
+                }
+            }
+        ],
+        "./lovekit/lovekit.py": [
+            {
+                "code": "reportAttributeAccessIssue",
+                "range": {
+                    "startColumn": 25,
+                    "endColumn": 39,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportAttributeAccessIssue",
+                "range": {
+                    "startColumn": 28,
+                    "endColumn": 42,
+                    "lineCount": 1
+                }
+            }
+        ],
+        "./tests/test_client.py": [
+            {
+                "code": "reportAttributeAccessIssue",
+                "range": {
+                    "startColumn": 26,
+                    "endColumn": 30,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportAttributeAccessIssue",
+                "range": {
+                    "startColumn": 48,
+                    "endColumn": 52,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportAttributeAccessIssue",
+                "range": {
+                    "startColumn": 25,
+                    "endColumn": 29,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportOptionalMemberAccess",
+                "range": {
+                    "startColumn": 40,
+                    "endColumn": 46,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportAttributeAccessIssue",
+                "range": {
+                    "startColumn": 21,
+                    "endColumn": 25,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportAttributeAccessIssue",
+                "range": {
+                    "startColumn": 26,
+                    "endColumn": 30,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportAttributeAccessIssue",
+                "range": {
+                    "startColumn": 48,
+                    "endColumn": 52,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportAttributeAccessIssue",
+                "range": {
+                    "startColumn": 21,
+                    "endColumn": 25,
+                    "lineCount": 1
+                }
+            },
+            {
+                "code": "reportAttributeAccessIssue",
+                "range": {
+                    "startColumn": 25,
+                    "endColumn": 29,
+                    "lineCount": 1
+                }
+            }
+        ]
+    }
+}

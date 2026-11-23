@@ -21,6 +21,7 @@ from livekit.protocol.room import (
 from lovekit import AudioStream, Axis, AxisType, Calibration, DataStream, VideoStream
 from lovekit.api.schema import StreamDeclarationInput, StreamKind, Transport
 from lovekit.lovekit import Lovekit
+from lovekit.publish import LiveStreams
 from tests.conftest import LIVEKIT_KEY, LIVEKIT_SECRET
 
 pytestmark = [pytest.mark.integration]
@@ -54,7 +55,7 @@ async def _live(lovekit: Lovekit, stream_id: str) -> bool:
     return (await lovekit.ais_stream_live(stream_id)).live
 
 
-async def _joins(live) -> int:
+async def _joins(live: LiveStreams) -> int:
     return live.joins
 
 

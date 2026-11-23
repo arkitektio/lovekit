@@ -23,7 +23,7 @@ class FakeRath:
     def __init__(self) -> None:
         self.sent: list[dict[str, Any]] = []
 
-    def _answer(self, variables: dict[str, Any]) -> Any:
+    def _answer(self, variables: dict[str, Any]) -> SimpleNamespace:
         self.sent.append(variables)
         return SimpleNamespace(
             data={
@@ -43,12 +43,12 @@ class FakeRath:
             }
         )
 
-    async def aquery(self, document: str, variables: dict[str, Any]) -> Any:
+    async def aquery(self, document: str, variables: dict[str, Any]) -> SimpleNamespace:
         return self._answer(variables)
 
     async def asubscribe(
         self, document: str, variables: dict[str, Any]
-    ) -> AsyncIterator[Any]:
+    ) -> AsyncIterator[SimpleNamespace]:
         yield self._answer(variables)
 
 

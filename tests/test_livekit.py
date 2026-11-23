@@ -1,9 +1,7 @@
 """Connecting rooms to the media server: directly, or through the mesh."""
 
-from types import SimpleNamespace
-
 import pytest
-from arkitekt_spec.declare.wiring import MeshError
+from arkitekt_spec.declare.wiring import MeshError, TurnInfo
 from fakts import Alias
 from livekit import rtc
 
@@ -13,21 +11,21 @@ from lovekit.transports.livekit import aroom_options
 class FakeNode:
     """The mesh node a resolved mesh alias carries (fakts tests the real one)."""
 
-    def __init__(self):
-        self.forwarded = []
+    def __init__(self) -> None:
+        self.forwarded: list[tuple[str, int]] = []
 
-    async def forward(self, host, port):
+    async def forward(self, host: str, port: int) -> str:
         self.forwarded.append((host, port))
         return "127.0.0.1:5555"
 
-    async def turn(self):
-        return SimpleNamespace(
+    async def turn(self) -> TurnInfo:
+        return TurnInfo(
             urls=["turn:127.0.0.1:3478?transport=udp"], username="u", credential="c"
         )
 
 
 @pytest.mark.asyncio
-async def test_a_direct_server_is_connected_as_is():
+async def test_a_direct_server_is_connected_as_is() -> None:
     alias = Alias(id="lk", host="livekit.example", port=7880, ssl=True)
     url, options = await aroom_options(alias)
     assert url == "wss://livekit.example:7880"
@@ -35,7 +33,7 @@ async def test_a_direct_server_is_connected_as_is():
 
 
 @pytest.mark.asyncio
-async def test_a_mesh_server_goes_through_the_forward_and_the_relay():
+async def test_a_mesh_server_goes_through_the_forward_and_the_relay() -> None:
     node = FakeNode()
     alias = Alias(id="lk", host="100.64.0.7", port=7880, path="/rtc-base", kind="mesh")
     alias = alias.through_mesh("http://127.0.0.1:41234", node)
@@ -50,6 +48,6 @@ async def test_a_mesh_server_goes_through_the_forward_and_the_relay():
 
 
 @pytest.mark.asyncio
-async def test_a_mesh_server_needs_a_mesh_node():
+async def test_a_mesh_server_needs_a_mesh_node() -> None:
     with pytest.raises(MeshError):
         await aroom_options(Alias(id="lk", host="100.64.0.7", kind="mesh"))

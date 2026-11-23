@@ -10,6 +10,20 @@ schema @link(url: "https://specs.apollo.dev/federation/v2.11", import: ["@key"])
   subscription: Subscription
 }
 
+"""Objects to put in a collaboration at once: all of them, or none"""
+input AddManyToCollaborationInput {
+  """The collaboration's key (lok's)"""
+  collaboration: ID!
+
+  """What to put in; a whole before its parts"""
+  objects: [CollaborationObjectRef!]!
+
+  """
+  The collaboration's name, kept here when these are the first things put in
+  """
+  name: String = null
+}
+
 """What a call is now also about"""
 input AddToCallInput {
   call: ID!
@@ -40,6 +54,13 @@ type Agent @identified(by: "@lovekit/agent") {
 
 """Filter for agents"""
 input AgentFilter {
+  """
+  Only what is in this collaboration (its key): put in, or part of what was
+  """
+  inCollaboration: ID
+
+  """Only what the workflow (its root task id) created"""
+  createdUnder: ID
   AND: AgentFilter
   OR: AgentFilter
   NOT: AgentFilter
@@ -126,6 +147,11 @@ type Call {
   creator: User
 
   """
+  When the call's room last closed, everyone gone; null while it is live (or was never seen to end)
+  """
+  endedAt: DateTime
+
+  """
   The structures this call is about, oldest first: the last one is what it turned to most recently.
   """
   about: [Structure!]!
@@ -142,7 +168,9 @@ type Call {
   participantCount: Int!
 }
 
-"""A call starting in your organization, or changing what it is about"""
+"""
+A call starting in your organization, changing what it is about, ending, or coming back
+"""
 type CallEvent {
   """A call someone else just started, which you can join"""
   create: Call
@@ -151,6 +179,12 @@ type CallEvent {
   A call that turned to something else; what it was about before is still in `about`
   """
   update: Call
+
+  """A call whose room closed: everyone left. `endedAt` says when"""
+  ended: Call
+
+  """A call that had ended and is live again: someone joined it"""
+  resumed: Call
 }
 
 """Filter for calls"""
@@ -200,6 +234,15 @@ type CallParticipant {
   joinedAt: Int!
 }
 
+"""Someone joining or leaving a call"""
+type CallParticipantEvent {
+  """Who just joined the call"""
+  joined: CallParticipant
+
+  """Who just left the call"""
+  left: CallParticipant
+}
+
 type Client @key(fields: "id", resolvable: true) {
   id: ID!
   release: Release
@@ -215,8 +258,20 @@ type Collaboration {
   description: String
   createdAt: DateTime!
 
-  """What is in the collaboration; what is part of these is in it too"""
-  items: [CollaborationItem!]!
+  """
+  The collaboration's key across the hub: what lok grants, and what names it in every service
+  """
+  key: ID!
+
+  """
+  What is in the collaboration, oldest first; what is part of these is in it too. `brought` keeps what was put in by hand (false) or only what came along with it (true)
+  """
+  items(brought: Boolean = null, pagination: OffsetPaginationInput = null): [CollaborationItem!]!
+
+  """
+  How many objects are in the collaboration: all of them, or (`brought`) only those put in by hand (false) or only those that came along with one (true)
+  """
+  itemCount(brought: Boolean = null): Int!
 }
 
 """
@@ -240,8 +295,23 @@ type CollaborationItem {
 
 """An object to put in, or take out of, a collaboration"""
 input CollaborationObjectInput {
+  """The collaboration's key (lok's)"""
   collaboration: ID!
 
+  """The structure the object is known by: @mikro/scene"""
+  identifier: String!
+
+  """The object's id"""
+  object: ID!
+
+  """
+  The collaboration's name, kept here when this is the first thing put in
+  """
+  name: String = null
+}
+
+"""An object, by its structure and id"""
+input CollaborationObjectRef {
   """The structure the object is known by: @mikro/scene"""
   identifier: String!
 
@@ -257,12 +327,6 @@ type Connection {
 
   """What lets the caller in: for LIVEKIT, the access token of its room"""
   credential: String!
-}
-
-"""A new collaboration"""
-input CreateCollaborationInput {
-  name: String!
-  description: String = null
 }
 
 """What every frame of a data stream holds"""
@@ -348,22 +412,29 @@ input JoinCallInput {
 
 type Mutation {
   """
-  Create an empty collaboration, to put agents and streams in and grant a guest
-  """
-  createCollaboration(input: CreateCollaborationInput!): Collaboration! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
-
-  """
-  Put an agent or a stream in a collaboration: an agent brings every stream it offers
+  Put an agent in a collaboration (lok's, by its key): it brings every stream it offers. The collaboration's row here is made the first time something is put in
   """
   addToCollaboration(input: CollaborationObjectInput!): Collaboration! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
 
-  """Take an agent or a stream out of a collaboration"""
+  """
+  Put several agents in a collaboration (by its key) at once, each with every stream it offers: all of them, or none
+  """
+  addManyToCollaboration(input: AddManyToCollaborationInput!): Collaboration! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
+
+  """
+  Put what a workflow (its root task) created in lovekit in a collaboration. Nothing here says which workflow made it: an agent and its streams are the app's, across workflows, so the report lists them as unknown and puts nothing in. `dryRun` only says what would be put in
+  """
+  shareWorkflow(input: ShareWorkflowInput!): WorkflowShare! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
+
+  """
+  Take an agent out of a collaboration (by its key), and its streams with it
+  """
   removeFromCollaboration(input: CollaborationObjectInput!): Collaboration! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
 
   """
-  Delete a collaboration: whoever was granted it sees nothing of it any more
+  Take everything lovekit put in a collaboration (by its key) out of it: whoever was granted it sees nothing of it here any more. lok's collaboration, and its grants, stay
   """
-  deleteCollaboration(id: ID!): ID! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
+  deleteCollaboration(key: ID!): ID! @auth(required_scopes: ["lovekit_share"], any_role_of: ["lovekit_editor"])
 
   """
   Offer exactly these streams as the caller's agent: undeclared ones are removed, unchanged ones untouched
@@ -442,10 +513,10 @@ type Query {
   """
   List the organization's collaborations: what a guest granted one sees of it (a guest: the collaborations granted to them)
   """
-  collaborations: [Collaboration!]! @auth(required_scopes: ["lovekit_watch"])
+  collaborations(pagination: OffsetPaginationInput = null): [Collaboration!]! @auth(required_scopes: ["lovekit_watch"])
 
-  """Get a single collaboration by ID"""
-  collaboration(id: ID!): Collaboration! @auth(required_scopes: ["lovekit_watch"])
+  """Get a single collaboration by its key (lok's): what was put in it here"""
+  collaboration(key: ID!): Collaboration! @auth(required_scopes: ["lovekit_watch"])
 
   """Get a stream by ID"""
   stream(id: ID!): Stream! @auth(required_scopes: ["lovekit_watch"])
@@ -464,6 +535,51 @@ type Release @key(fields: "id", resolvable: true) {
   id: ID!
   app: App!
   version: String!
+}
+
+"""Put what a workflow created in a collaboration, as it is now"""
+input ShareWorkflowInput {
+  """The collaboration's key (lok's)"""
+  collaboration: ID!
+
+  """
+  The workflow: the id of the task a person started, the root of every task it caused
+  """
+  rootTask: ID!
+
+  """Only say what would be put in, and what left out"""
+  dryRun: Boolean! = false
+
+  """The collaboration's name, kept here when this puts the first things in"""
+  name: String = null
+}
+
+"""An object, by its structure and id"""
+type SharedObject {
+  """The structure the object is known by: @mikro/scene"""
+  identifier: String
+
+  """The object's id"""
+  object: ID!
+}
+
+"""
+Created in the workflow, but part of something made before it that is not shared: left out
+"""
+type SkippedObject {
+  """The structure the object is known by"""
+  identifier: String
+
+  """The object's id"""
+  object: ID!
+
+  """The structure of what it is part of"""
+  wholeIdentifier: String
+
+  """
+  The id of what it is part of: put that in, and share the workflow again, to bring it
+  """
+  whole: ID!
 }
 
 """
@@ -517,7 +633,7 @@ input StreamDeclarationInput {
 }
 
 """
-A stream an agent of your organization declared, changed or no longer offers
+A stream an agent of your organization declared, changed, no longer offers, or started or stopped publishing
 """
 type StreamEvent {
   """A stream an agent declared for the first time"""
@@ -528,10 +644,25 @@ type StreamEvent {
 
   """A stream its agent no longer offers"""
   delete: ID
+
+  """A stream its agent started publishing: it is live now"""
+  live: Stream
+
+  """
+  A stream its agent stopped publishing, or whose agent left: it is not live now
+  """
+  offline: Stream
 }
 
 """Filter for streams"""
 input StreamFilter {
+  """
+  Only what is in this collaboration (its key): put in, or part of what was
+  """
+  inCollaboration: ID
+
+  """Only what the workflow (its root task id) created"""
+  createdUnder: ID
   AND: StreamFilter
   OR: StreamFilter
   NOT: StreamFilter
@@ -592,9 +723,12 @@ type Subscription {
   callInvites: CallInviteEvent! @auth(required_scopes: ["lovekit_watch"])
 
   """
-  The calls others start in your organization as they start, and any call's new topics
+  The calls others start in your organization as they start, any call's new topics, and calls ending and coming back
   """
   calls: CallEvent! @auth(required_scopes: ["lovekit_watch"])
+
+  """Who joins and leaves one call, as they do"""
+  callParticipants(call: ID!): CallParticipantEvent! @auth(required_scopes: ["lovekit_watch"])
 }
 
 """How a stream is carried from its agent to whoever watches"""
@@ -638,6 +772,33 @@ input WatchAgentInput {
 """The stream to watch"""
 input WatchStreamInput {
   stream: ID!
+}
+
+"""
+What sharing a workflow put in a collaboration here (or, tried, would put in)
+"""
+type WorkflowShare {
+  """The collaboration's key"""
+  collaboration: ID!
+
+  """Whether nothing was written"""
+  dryRun: Boolean!
+
+  """Put in, with what each needs to be seen"""
+  added: [SharedObject!]!
+
+  """
+  How many parts came along with their whole, without being put in themselves
+  """
+  covered: Int!
+
+  """Left out: parts of something made before the workflow and not shared"""
+  skipped: [SkippedObject!]!
+
+  """
+  Structures here that cannot say what created their objects: not looked at
+  """
+  unknown: [String!]!
 }
 
 scalar _Any

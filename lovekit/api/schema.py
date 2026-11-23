@@ -157,6 +157,18 @@ class StreamDeclarationInput(BaseModel):
 class StreamFilter(BaseModel):
     """Filter for streams"""
 
+    in_collaboration: ID | None = Field(
+        validation_alias=AliasChoices("in_collaboration", "inCollaboration"),
+        serialization_alias="inCollaboration",
+        default=None,
+        description="Only what is in this collaboration (its key): put in, or part of what was",
+    )
+    created_under: ID | None = Field(
+        validation_alias=AliasChoices("created_under", "createdUnder"),
+        serialization_alias="createdUnder",
+        default=None,
+        description="Only what the workflow (its root task id) created",
+    )
     and_: "StreamFilter | None" = Field(
         validation_alias=AliasChoices("and_", "AND"),
         serialization_alias="AND",

@@ -45,7 +45,16 @@ import numpy as np
 from rath.operation import GraphQLException
 
 from lovekit import frames
-from lovekit.api.schema import AxisInput, AxisType, CalibrationInput, DataFormatInput, Stream, StreamDeclarationInput, StreamKind, Transport
+from lovekit.api.schema import (
+    AxisInput,
+    AxisType,
+    CalibrationInput,
+    DataFormatInput,
+    Stream,
+    StreamDeclarationInput,
+    StreamKind,
+    Transport,
+)
 
 if TYPE_CHECKING:
     from lovekit.lovekit import Lovekit
@@ -138,9 +147,13 @@ class DataStream:
         object.__setattr__(self, "shape", tuple(self.shape))
         size = math.prod(self.shape) * np.dtype(self.dtype).itemsize
         if size > frames.MAX_FRAME_BYTES:
-            raise ValueError(f"{self.key}: a frame of {size} bytes is more than the {frames.MAX_FRAME_BYTES} a data stream carries; send fewer or smaller values")
+            raise ValueError(
+                f"{self.key}: a frame of {size} bytes is more than the {frames.MAX_FRAME_BYTES} a data stream carries; send fewer or smaller values"
+            )
         if len(self.axes) != len(self.shape):
-            raise ValueError(f"{self.key}: {len(self.shape)} dimensions, but {len(self.axes)} axes")
+            raise ValueError(
+                f"{self.key}: {len(self.shape)} dimensions, but {len(self.axes)} axes"
+            )
 
     @property
     def kind(self) -> StreamKind:
@@ -151,7 +164,12 @@ class DataStream:
             dtype=self.dtype,
             shape=self.shape,
             axes=tuple(AxisInput(name=axis.name, type=axis.type) for axis in self.axes),
-            calibration=tuple(CalibrationInput(axis=c.axis, unit=c.unit, scale=c.scale, offset=c.offset) for c in self.calibration),
+            calibration=tuple(
+                CalibrationInput(
+                    axis=c.axis, unit=c.unit, scale=c.scale, offset=c.offset
+                )
+                for c in self.calibration
+            ),
             unit=self.unit,
             reference=self.reference,
         )
@@ -209,7 +227,9 @@ class VideoTrack:
         Kept as the last frame while the connection is away, and sent once it is back.
         """
         if rgba.ndim != 3 or rgba.shape[2] != 4 or rgba.dtype != np.uint8:
-            raise ValueError(f"A frame is (height, width, 4) uint8 RGBA, not {rgba.shape} {rgba.dtype}: see lovekit.publish.to_rgba")
+            raise ValueError(
+                f"A frame is (height, width, 4) uint8 RGBA, not {rgba.shape} {rgba.dtype}: see lovekit.publish.to_rgba"
+            )
         self._last = rgba
         await self._push()
 
@@ -222,12 +242,21 @@ class VideoTrack:
             if self._sink is None or self._sink.size != (width, height):
                 if self._sink is not None:
                     await self._sink.aclose()
-                self._sink = await session.video(self.key, width, height, self.declaration.max_framerate, self.declaration.max_bitrate)
+                self._sink = await session.video(
+                    self.key,
+                    width,
+                    height,
+                    self.declaration.max_framerate,
+                    self.declaration.max_bitrate,
+                )
             self._sink.push(frame)
             self._sent_at = asyncio.get_running_loop().time()
 
     async def _resend_if_idle(self) -> None:
-        if self._session is not None and asyncio.get_running_loop().time() - self._sent_at >= RESEND_INTERVAL:
+        if (
+            self._session is not None
+            and asyncio.get_running_loop().time() - self._sent_at >= RESEND_INTERVAL
+        ):
             await self._push()
 
     async def _attach(self, session: Session) -> None:
@@ -277,7 +306,9 @@ class AudioTrack:
     async def _attach(self, session: Session) -> None:
         await self._detach()
         async with self._lock:
-            self._sink = await session.audio(self.key, self.declaration.sample_rate, self.declaration.num_channels)
+            self._sink = await session.audio(
+                self.key, self.declaration.sample_rate, self.declaration.num_channels
+            )
 
     async def _detach(self) -> None:
         async with self._lock:
@@ -320,11 +351,16 @@ class DataTrack:
         """
         data = np.asarray(values)
         if data.dtype != self._dtype or data.shape != self.declaration.shape:
-            raise ValueError(f"A frame of {self.key} is {self.declaration.shape} {self._dtype}, not {data.shape} {data.dtype}")
+            raise ValueError(
+                f"A frame of {self.key} is {self.declaration.shape} {self._dtype}, not {data.shape} {data.dtype}"
+            )
         self._sequence += 1
         self._packet = frames.encode(self._sequence, data)
         self._waiting = True
-        if asyncio.get_running_loop().time() - self._sent_at >= 1.0 / self.declaration.max_rate:
+        if (
+            asyncio.get_running_loop().time() - self._sent_at
+            >= 1.0 / self.declaration.max_rate
+        ):
             self._flush()
 
     def _flush(self) -> None:
@@ -336,7 +372,9 @@ class DataTrack:
 
     async def _resend_if_idle(self) -> None:
         idle = asyncio.get_running_loop().time() - self._sent_at
-        if idle >= (1.0 / self.declaration.max_rate if self._waiting else RESEND_INTERVAL):
+        if idle >= (
+            1.0 / self.declaration.max_rate if self._waiting else RESEND_INTERVAL
+        ):
             self._flush()
 
     async def _attach(self, session: Session) -> None:
@@ -372,10 +410,15 @@ class LiveStreams:
         keys = [declaration.key for declaration in declarations]
         duplicates = sorted({key for key in keys if keys.count(key) > 1})
         if duplicates:
-            raise ValueError(f"Each stream is declared once; declared more than once: {', '.join(duplicates)}")
+            raise ValueError(
+                f"Each stream is declared once; declared more than once: {', '.join(duplicates)}"
+            )
         self._lovekit = lovekit
         self._declarations = list(declarations)
-        self._tracks: dict[str, Track] = {declaration.key: _track(declaration, self) for declaration in self._declarations}
+        self._tracks: dict[str, Track] = {
+            declaration.key: _track(declaration, self)
+            for declaration in self._declarations
+        }
         self.streams: tuple[Stream, ...] = ()
         """The declared streams, as lovekit keeps them (their ids stay over restarts)."""
         self.connected = asyncio.Event()
@@ -433,7 +476,12 @@ class LiveStreams:
             except (GraphQLException, asyncio.CancelledError):
                 raise
             except Exception as error:  # lovekit is not there (yet)
-                logger.warning("Could not declare %s, again in %.0f s: %s", ", ".join(self._tracks), backoff, error)
+                logger.warning(
+                    "Could not declare %s, again in %.0f s: %s",
+                    ", ".join(self._tracks),
+                    backoff,
+                    error,
+                )
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, MAX_BACKOFF)
 
@@ -445,7 +493,9 @@ class LiveStreams:
                     title=declaration.title or declaration.key,
                     kind=declaration.kind,
                     description=declaration.description,
-                    format=declaration.format() if isinstance(declaration, DataStream) else None,
+                    format=declaration.format()
+                    if isinstance(declaration, DataStream)
+                    else None,
                 )
                 for declaration in self._declarations
             ]
@@ -460,12 +510,18 @@ class LiveStreams:
     async def _join(self) -> Session:
         connection = await self._lovekit.apublisher_connection()
         if connection.transport != Transport.LIVEKIT:
-            raise RuntimeError(f"lovekit hands out a {connection.transport} connection, which this lovekit client does not speak")
+            raise RuntimeError(
+                f"lovekit hands out a {connection.transport} connection, which this lovekit client does not speak"
+            )
         if self._lovekit.livekit is None:
-            raise RuntimeError("this lovekit client was built without the livekit alias")
+            raise RuntimeError(
+                "this lovekit client was built without the livekit alias"
+            )
         from lovekit.transports import livekit
 
-        return await livekit.ajoin(self._lovekit.livekit, connection.credential, self._watchers)
+        return await livekit.ajoin(
+            self._lovekit.livekit, connection.credential, self._watchers
+        )
 
     async def _connect(self) -> Gone:
         """Join once and publish every track; returns why the session went away."""
@@ -492,15 +548,24 @@ class LiveStreams:
                 gone = await self._connect()
             except asyncio.CancelledError:
                 raise
-            except Exception as error:  # a connection, a join that failed: try again, later
-                logger.warning("Could not join for %s, again in %.0f s: %s", ", ".join(self._tracks), backoff, error)
+            except (
+                Exception
+            ) as error:  # a connection, a join that failed: try again, later
+                logger.warning(
+                    "Could not join for %s, again in %.0f s: %s",
+                    ", ".join(self._tracks),
+                    backoff,
+                    error,
+                )
                 await asyncio.sleep(backoff)
                 if isinstance(error, GraphQLException):
                     # lovekit answered, but knows no agent of ours (its database was reset):
                     # declared again, there is one, with the same streams.
                     try:
                         await self._declare()
-                    except Exception as again:  # it is tried once more on the next round
+                    except (
+                        Exception
+                    ) as again:  # it is tried once more on the next round
                         logger.debug("Declaring again failed: %s", again)
                 backoff = min(backoff * 2, MAX_BACKOFF)
                 continue
@@ -508,7 +573,11 @@ class LiveStreams:
             if gone.final:
                 self._stop(gone.reason)
                 if not gone.closed:
-                    logger.warning("Stopped publishing %s: %s", ", ".join(self._tracks), self.stop_reason)
+                    logger.warning(
+                        "Stopped publishing %s: %s",
+                        ", ".join(self._tracks),
+                        self.stop_reason,
+                    )
                 return
             logger.info("The connection went away (%s); joining again", gone.reason)
 
@@ -531,10 +600,18 @@ class LiveStreams:
             self._stop("not declared")
             self._lovekit._release_publisher(self)
             raise
-        self._tasks = [asyncio.create_task(self._run()), asyncio.create_task(self._resend())]
+        self._tasks = [
+            asyncio.create_task(self._run()),
+            asyncio.create_task(self._resend()),
+        ]
         return self
 
-    async def __aexit__(self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         self._closing = True
         session = self._session
         if session is not None:

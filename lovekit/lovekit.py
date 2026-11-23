@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any
 
 from fakts import Alias
 from koil import unkoil, unkoil_gen
-from pydantic import PrivateAttr
 from koil.composition import Composition
+from pydantic import PrivateAttr
 from rath.origin import origin_context
 from rath.turms.funcs import TOperation
 
@@ -52,12 +52,16 @@ class Lovekit(Composition, LovekitApi):
         from lovekit.publish import LiveStreams, declarations
 
         if self._publisher is not None:
-            raise RuntimeError("This client already publishes its agent's streams: declare them all in one publish()")
+            raise RuntimeError(
+                "This client already publishes its agent's streams: declare them all in one publish()"
+            )
         live = LiveStreams(self, declarations(streams))
         self._publisher = live
         return live
 
-    def watch(self, stream: "Stream") -> "AbstractAsyncContextManager[AsyncIterator[Frame]]":
+    def watch(
+        self, stream: "Stream"
+    ) -> "AbstractAsyncContextManager[AsyncIterator[Frame]]":
         """The frames of a data stream another app publishes.
 
         ``async with lovekit.watch(stream) as frames:`` joins through whatever carries the

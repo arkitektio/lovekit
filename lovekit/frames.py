@@ -40,6 +40,10 @@ def decode(packet: bytes, dtype: str, shape: tuple[int, ...]) -> Frame:
     """The frame in ``packet``, its values read as the stream declared them."""
     version, _flags, _reserved, sequence, sent_at_us = HEADER.unpack_from(packet)
     if version != VERSION:
-        raise ValueError(f"A frame of version {version}; this lovekit reads version {VERSION}")
-    values = np.frombuffer(packet, dtype=little(dtype), offset=HEADER.size).reshape(shape)
+        raise ValueError(
+            f"A frame of version {version}; this lovekit reads version {VERSION}"
+        )
+    values = np.frombuffer(packet, dtype=little(dtype), offset=HEADER.size).reshape(
+        shape
+    )
     return Frame(sequence=sequence, sent_at_us=sent_at_us, values=values)

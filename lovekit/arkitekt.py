@@ -7,17 +7,16 @@ ask for the client it returns. An app takes all of it in with
 
 from typing import Annotated
 
+from arkitekt_spec.declare.app import AppRegistry
+from arkitekt_spec.declare.tested import tested_against
+from arkitekt_spec.declare.widgets import SearchWidget
 from fakts import Alias, Require, TokenLoader
 from fakts.contrib.rath.auth import FaktsAuthLink
-from graphql import OperationType
 from rath.links.aiohttp import AIOHttpLink
 from rath.links.graphql_ws import GraphQLWSLink
 from rath.links.split import SplitLink
 
-from arkitekt_spec.declare.app import AppRegistry
-from arkitekt_spec.declare.tested import tested_against
-from arkitekt_spec.declare.widgets import SearchWidget
-
+from graphql import OperationType
 from lovekit.api.schema import (
     Agent,
     SearchAgentsQuery,
@@ -26,7 +25,6 @@ from lovekit.api.schema import (
 )
 from lovekit.lovekit import Lovekit
 from lovekit.rath import LovekitLinkComposition, LovekitRath
-
 
 registry = AppRegistry()
 """What lovekit brings to an app: its service, and the types it can send by id."""
@@ -40,7 +38,11 @@ TESTED = tested_against("lovekit")
 def lovekit(
     lovekit: Annotated[
         Alias,
-        Require("live.arkitekt.lovekit", "Where rooms and their tokens are managed", version=TESTED),
+        Require(
+            "live.arkitekt.lovekit",
+            "Where rooms and their tokens are managed",
+            version=TESTED,
+        ),
     ],
     livekit: Annotated[
         Alias,
@@ -61,12 +63,20 @@ def lovekit(
             link=LovekitLinkComposition(
                 auth=FaktsAuthLink(token_loader=tokens),
                 split=SplitLink(
-                    left=AIOHttpLink(endpoint_url=lovekit.to_http_path("graphql"), proxy=lovekit.proxy, ssl_context=lovekit.ssl_context()),
-                    right=GraphQLWSLink(ws_endpoint_url=lovekit.to_ws_path("graphql"), proxy=lovekit.proxy, ssl_context=lovekit.ssl_context()),
+                    left=AIOHttpLink(
+                        endpoint_url=lovekit.to_http_path("graphql"),
+                        proxy=lovekit.proxy,
+                        ssl_context=lovekit.ssl_context(),
+                    ),
+                    right=GraphQLWSLink(
+                        ws_endpoint_url=lovekit.to_ws_path("graphql"),
+                        proxy=lovekit.proxy,
+                        ssl_context=lovekit.ssl_context(),
+                    ),
                     split=lambda o: o.node.operation != OperationType.SUBSCRIPTION,
                 ),
             )
-        )
+        ),
     )
 
 

@@ -53,13 +53,17 @@ class Gone:
 class VideoSink:
     """One published video track of a fixed size."""
 
-    def __init__(self, room: rtc.Room, source: rtc.VideoSource, sid: str, width: int, height: int) -> None:
+    def __init__(
+        self, room: rtc.Room, source: rtc.VideoSource, sid: str, width: int, height: int
+    ) -> None:
         self._room, self._source, self._sid = room, source, sid
         self.size = (width, height)
 
     def push(self, rgba: np.ndarray) -> None:
         width, height = self.size
-        self._source.capture_frame(rtc.VideoFrame(width, height, rtc.VideoBufferType.RGBA, rgba.tobytes()))
+        self._source.capture_frame(
+            rtc.VideoFrame(width, height, rtc.VideoBufferType.RGBA, rgba.tobytes())
+        )
 
     async def aclose(self) -> None:
         if self._room.isconnected():
@@ -70,11 +74,17 @@ class VideoSink:
 class AudioSink:
     """One published audio track."""
 
-    def __init__(self, source: rtc.AudioSource, sample_rate: int, channels: int) -> None:
+    def __init__(
+        self, source: rtc.AudioSource, sample_rate: int, channels: int
+    ) -> None:
         self._source, self._sample_rate, self._channels = source, sample_rate, channels
 
     async def push(self, samples: np.ndarray) -> None:
-        await self._source.capture_frame(rtc.AudioFrame(samples.tobytes(), self._sample_rate, self._channels, samples.shape[0]))
+        await self._source.capture_frame(
+            rtc.AudioFrame(
+                samples.tobytes(), self._sample_rate, self._channels, samples.shape[0]
+            )
+        )
 
     async def aclose(self) -> None:
         await self._source.aclose()
@@ -110,7 +120,9 @@ class Session:
                 final = reason in _FINAL
                 self._gone.set_result(
                     Gone(
-                        reason=_FINAL[reason] if final else rtc.DisconnectReason.Name(reason),
+                        reason=_FINAL[reason]
+                        if final
+                        else rtc.DisconnectReason.Name(reason),
                         final=final,
                         closed=reason == rtc.DisconnectReason.CLIENT_INITIATED,
                     )
@@ -128,12 +140,16 @@ class Session:
         """Until the room went away; why."""
         return await self._gone
 
-    async def video(self, key: str, width: int, height: int, max_framerate: float, max_bitrate: int) -> VideoSink:
+    async def video(
+        self, key: str, width: int, height: int, max_framerate: float, max_bitrate: int
+    ) -> VideoSink:
         source = rtc.VideoSource(width, height)
         track = rtc.LocalVideoTrack.create_video_track(key, source)
         options = rtc.TrackPublishOptions(
             source=rtc.TrackSource.SOURCE_CAMERA,
-            video_encoding=rtc.VideoEncoding(max_framerate=max_framerate, max_bitrate=max_bitrate),
+            video_encoding=rtc.VideoEncoding(
+                max_framerate=max_framerate, max_bitrate=max_bitrate
+            ),
         )
         publication = await self._room.local_participant.publish_track(track, options)
         return VideoSink(self._room, source, publication.sid, width, height)
@@ -141,7 +157,9 @@ class Session:
     async def audio(self, key: str, sample_rate: int, channels: int) -> AudioSink:
         source = rtc.AudioSource(sample_rate, channels)
         track = rtc.LocalAudioTrack.create_audio_track(key, source)
-        await self._room.local_participant.publish_track(track, rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE))
+        await self._room.local_participant.publish_track(
+            track, rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE)
+        )
         return AudioSink(source, sample_rate, channels)
 
     async def data(self, key: str) -> DataSink:
@@ -155,7 +173,9 @@ class Session:
 class Viewing:
     """One joined room, as someone who watches."""
 
-    def __init__(self, room: rtc.Room, published: asyncio.Queue[rtc.RemoteDataTrack]) -> None:
+    def __init__(
+        self, room: rtc.Room, published: asyncio.Queue[rtc.RemoteDataTrack]
+    ) -> None:
         self._room = room
         self._published = published
 
@@ -184,7 +204,9 @@ async def awatch(alias: Alias, credential: str) -> Viewing:
     return Viewing(room, published)
 
 
-async def ajoin(alias: Alias, credential: str, on_watchers: Callable[[int], None]) -> Session:
+async def ajoin(
+    alias: Alias, credential: str, on_watchers: Callable[[int], None]
+) -> Session:
     """Join the room ``credential`` is for; ``on_watchers`` hears how many others are in it."""
     room = rtc.Room()
     url, options = await aroom_options(alias)

@@ -22,25 +22,20 @@ dependencies = [
 [project.optional-dependencies]
 
 
-[tool.uv]
-dev-dependencies =  [
+[dependency-groups]
+dev = [
     "pytest-asyncio>=0.26.0",
     "pytest-cov>=6.1.1",
     "pytest>=8.3.5",
     "python-semantic-release>=9.21.0",
     "pytest-aiohttp>=1.0.4,<2",
-    "ruff>0.11",
+    "ruff==0.17.6",
     "turms>=3.0",
     "dokker>=2.8",
     "websockets>=15.0.1",
-    "basedpyright>=1.21",
+    "basedpyright==1.40.2",
     "livekit-api>=2.0",
 ]
-
-[tool.basedpyright]
-include = ["lovekit"]
-exclude = ["**/__pycache__", "tests"]
-typeCheckingMode = "standard"
 
 # `_tested.json` is written by the integration tests (the server version they ran against)
 # and is not in git: named as an artifact, on both, it is shipped all the same.
@@ -52,13 +47,6 @@ artifacts = ["lovekit/_tested.json"]
 include = ["lovekit"]
 artifacts = ["lovekit/_tested.json"]
 
-
-[tool.ruff.lint]
-extend-select = ["UP"]
-extend-ignore = ["UP037", "UP038", "UP042"]
-
-[tool.ruff.lint.per-file-ignores]
-"lovekit/api/schema.py" = ["UP035"]
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"

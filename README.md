@@ -30,7 +30,7 @@ an `a`-prefixed async flavour: `declare_streams`, `publisher_connection`, `watch
 from lovekit import VideoStream, to_rgba
 
 async with lovekit.publish([VideoStream("camera", title="Main camera")]) as live:
-    print(live.streams)                          # the declared streams (@lovekit/stream)
+    print(live.streams)  # the declared streams (@lovekit/stream)
     while True:
         await live.video("camera").send(to_rgba(frame))  # (height, width, 4) uint8
 ```
@@ -67,7 +67,7 @@ spectrum = DataStream(
 async with lovekit.publish([spectrum]) as live:
     feed = live.data("spectrum")
     while True:
-        await feed.wait_watched()                       # nobody watching: nothing to measure
+        await feed.wait_watched()  # nobody watching: nothing to measure
         await feed.send(read().astype("float16"))
 ```
 
@@ -133,7 +133,7 @@ An app reads a data stream another app publishes with `lovekit.watch`:
 ```python
 async with lovekit.watch(stream) as frames:
     async for frame in frames:
-        plot(frame.values)   # an array as the stream declared it
+        plot(frame.values)  # an array as the stream declared it
 ```
 
 It joins through whatever carries the stream, also over the mesh, and holds one value: a

@@ -77,7 +77,10 @@ def test_lovekit_imports_and_calls_through_a_client_with_arkitekt_unavailable() 
         "print('ok')\n"
     )
     result = subprocess.run(
-        [sys.executable, "-c", script], capture_output=True, text=True, cwd=PACKAGE.parent
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        cwd=PACKAGE.parent,
     )
 
     assert result.returncode == 0, result.stderr

@@ -1,12 +1,10 @@
 from pydantic import Field
-from rath.rath import Rath
-
 from rath.links.auth import AuthTokenLink
-
 from rath.links.compose import TypedComposedLink
 from rath.links.dictinglink import DictingLink
 from rath.links.shrink import ShrinkingLink
 from rath.links.split import SplitLink
+from rath.rath import Rath
 
 
 class LovekitLinkComposition(TypedComposedLink):

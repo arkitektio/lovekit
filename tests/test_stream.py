@@ -12,7 +12,11 @@ from typing import TypeVar
 import numpy as np
 import pytest
 from livekit import api
-from livekit.protocol.room import DeleteRoomRequest, ListParticipantsRequest, RoomParticipantIdentity
+from livekit.protocol.room import (
+    DeleteRoomRequest,
+    ListParticipantsRequest,
+    RoomParticipantIdentity,
+)
 
 from lovekit import AudioStream, Axis, AxisType, Calibration, DataStream, VideoStream
 from lovekit.api.schema import StreamDeclarationInput, StreamKind, Transport
@@ -26,7 +30,9 @@ T = TypeVar("T")
 FRAME = np.zeros((32, 48, 4), dtype=np.uint8)
 
 
-async def _eventually(read: Callable[[], Awaitable[T]], expected: T, timeout: float = 15.0) -> T:
+async def _eventually(
+    read: Callable[[], Awaitable[T]], expected: T, timeout: float = 15.0
+) -> T:
     """``read()`` once it returns ``expected``, or what it returns at the deadline."""
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
@@ -39,7 +45,9 @@ async def _eventually(read: Callable[[], Awaitable[T]], expected: T, timeout: fl
 
 def _livekit(agent: Lovekit) -> api.LiveKitAPI:
     assert agent.livekit is not None
-    return api.LiveKitAPI(f"http://{agent.livekit.host}:{agent.livekit.port}", LIVEKIT_KEY, LIVEKIT_SECRET)
+    return api.LiveKitAPI(
+        f"http://{agent.livekit.host}:{agent.livekit.port}", LIVEKIT_KEY, LIVEKIT_SECRET
+    )
 
 
 async def _live(lovekit: Lovekit, stream_id: str) -> bool:
@@ -50,9 +58,15 @@ async def _joins(live) -> int:
     return live.joins
 
 
-async def test_declaring_without_publishing_offers_the_streams(lovekit: Lovekit) -> None:
-    streams = await lovekit.adeclare_streams([StreamDeclarationInput(key="idle", title="Idle", kind=StreamKind.VIDEO)])
-    assert [(s.key, s.title, s.kind) for s in streams] == [("idle", "Idle", StreamKind.VIDEO)]
+async def test_declaring_without_publishing_offers_the_streams(
+    lovekit: Lovekit,
+) -> None:
+    streams = await lovekit.adeclare_streams(
+        [StreamDeclarationInput(key="idle", title="Idle", kind=StreamKind.VIDEO)]
+    )
+    assert [(s.key, s.title, s.kind) for s in streams] == [
+        ("idle", "Idle", StreamKind.VIDEO)
+    ]
     assert (await lovekit.ais_stream_live(streams[0].id)).live is False
     assert (await lovekit.aget_stream(streams[0].id)) == streams[0]
     agent = await lovekit.aget_agent(streams[0].agent.id)
@@ -60,10 +74,15 @@ async def test_declaring_without_publishing_offers_the_streams(lovekit: Lovekit)
     assert (await lovekit.apublisher_connection()).transport == Transport.LIVEKIT
 
 
-async def test_a_published_stream_is_live_and_comes_back_with_its_id(agent: Lovekit) -> None:
+async def test_a_published_stream_is_live_and_comes_back_with_its_id(
+    agent: Lovekit,
+) -> None:
     declared = [VideoStream("camera", title="Camera"), AudioStream("microphone")]
     async with agent.publish(declared) as live:
-        assert [(s.key, s.kind) for s in live.streams] == [("camera", StreamKind.VIDEO), ("microphone", StreamKind.AUDIO)]
+        assert [(s.key, s.kind) for s in live.streams] == [
+            ("camera", StreamKind.VIDEO),
+            ("microphone", StreamKind.AUDIO),
+        ]
         camera = live.streams[0]
         await live.wait_connected(timeout=20)
         await live.video("camera").send(FRAME)
@@ -93,7 +112,10 @@ async def test_a_data_stream_reaches_who_watches_it(agent: Lovekit) -> None:
     async with agent.publish([_spectrum()]) as live:
         [stream] = live.streams
         assert stream.kind == StreamKind.DATA
-        assert stream.format is not None and (stream.format.dtype, stream.format.shape) == ("float16", (512,))
+        assert stream.format is not None and (
+            stream.format.dtype,
+            stream.format.shape,
+        ) == ("float16", (512,))
         await live.wait_connected(timeout=20)
         feed = live.data("spectrum")
         assert feed.watched is False
@@ -146,7 +168,9 @@ async def test_a_data_stream_comes_back_with_its_last_value(agent: Lovekit) -> N
         # The room goes away under the agent: joined again, the track is there again.
         client = _livekit(agent)
         try:
-            await client.room.delete_room(DeleteRoomRequest(room=stream.agent.room_name))
+            await client.room.delete_room(
+                DeleteRoomRequest(room=stream.agent.room_name)
+            )
         finally:
             await client.aclose()
         assert await _eventually(lambda: _joins(live), 2, timeout=30) == 2
@@ -176,7 +200,9 @@ async def test_a_dropped_room_is_joined_again(agent: Lovekit) -> None:
         # The room goes away under the agent (a server restart, an operator): it comes back.
         client = _livekit(agent)
         try:
-            await client.room.delete_room(DeleteRoomRequest(room=stream.agent.room_name))
+            await client.room.delete_room(
+                DeleteRoomRequest(room=stream.agent.room_name)
+            )
         finally:
             await client.aclose()
         assert live.joins == 1
@@ -186,7 +212,9 @@ async def test_a_dropped_room_is_joined_again(agent: Lovekit) -> None:
         assert await _eventually(lambda: _live(agent, stream.id), True) is True
 
 
-async def test_a_newer_process_of_the_agent_takes_over_and_the_old_one_stops(agent: Lovekit) -> None:
+async def test_a_newer_process_of_the_agent_takes_over_and_the_old_one_stops(
+    agent: Lovekit,
+) -> None:
     newer = Lovekit(rath=agent.rath, livekit=agent.livekit)
     async with agent.publish([VideoStream("camera")]) as old:
         await old.wait_connected(timeout=20)
@@ -196,17 +224,26 @@ async def test_a_newer_process_of_the_agent_takes_over_and_the_old_one_stops(age
             await new.wait_connected(timeout=20)
             await new.video("camera").send(FRAME)
 
-            assert await asyncio.wait_for(old.wait_stopped(), 15) == "replaced by a newer connection of this agent"
+            assert (
+                await asyncio.wait_for(old.wait_stopped(), 15)
+                == "replaced by a newer connection of this agent"
+            )
             # It does not fight back: after a while the newer process still holds the room.
             await asyncio.sleep(3)
             assert new.connected.is_set() and not new.stopped.is_set()
             client = _livekit(agent)
             try:
                 room = new.streams[0].agent.room_name
-                participants = (await client.room.list_participants(ListParticipantsRequest(room=room))).participants
+                participants = (
+                    await client.room.list_participants(
+                        ListParticipantsRequest(room=room)
+                    )
+                ).participants
             finally:
                 await client.aclose()
-            assert [(p.identity, [t.name for t in p.tracks]) for p in participants] == [(f"agent-{new.streams[0].agent.id}", ["camera"])]
+            assert [(p.identity, [t.name for t in p.tracks]) for p in participants] == [
+                (f"agent-{new.streams[0].agent.id}", ["camera"])
+            ]
             # Sending to the stopped one does nothing.
             await old.video("camera").send(FRAME)
 
@@ -217,11 +254,16 @@ async def test_a_removed_agent_stops(agent: Lovekit) -> None:
         client = _livekit(agent)
         try:
             await client.room.remove_participant(
-                RoomParticipantIdentity(room=live.streams[0].agent.room_name, identity=f"agent-{live.streams[0].agent.id}")
+                RoomParticipantIdentity(
+                    room=live.streams[0].agent.room_name,
+                    identity=f"agent-{live.streams[0].agent.id}",
+                )
             )
         finally:
             await client.aclose()
-        assert await asyncio.wait_for(live.wait_stopped(), 15) == "removed from the room"
+        assert (
+            await asyncio.wait_for(live.wait_stopped(), 15) == "removed from the room"
+        )
 
 
 async def test_an_agent_publishes_once_at_a_time(agent: Lovekit) -> None:
@@ -233,7 +275,9 @@ async def test_an_agent_publishes_once_at_a_time(agent: Lovekit) -> None:
         pass
 
 
-async def test_a_refused_declaration_raises_and_frees_the_client(agent: Lovekit) -> None:
+async def test_a_refused_declaration_raises_and_frees_the_client(
+    agent: Lovekit,
+) -> None:
     from rath.operation import GraphQLException
 
     with pytest.raises(GraphQLException):

@@ -3,10 +3,10 @@
 from types import SimpleNamespace
 
 import pytest
-from livekit import rtc
-
 from arkitekt_spec.declare.wiring import MeshError
 from fakts import Alias
+from livekit import rtc
+
 from lovekit.transports.livekit import aroom_options
 
 

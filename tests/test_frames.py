@@ -50,7 +50,12 @@ def test_a_data_frame_reads_back_as_it_was_sent() -> None:
 
 def test_a_data_stream_of_more_than_a_packet_is_refused() -> None:
     with pytest.raises(ValueError, match="2048 bytes"):
-        DataStream("spectrum", dtype="float32", shape=(512,), axes=[Axis("wavelength", AxisType.SPECTRUM)])
+        DataStream(
+            "spectrum",
+            dtype="float32",
+            shape=(512,),
+            axes=[Axis("wavelength", AxisType.SPECTRUM)],
+        )
 
 
 #: One frame as it is on the wire: sequence 42, sent at 1795000000123456 us, float16 values

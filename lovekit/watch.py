@@ -26,14 +26,20 @@ if TYPE_CHECKING:
 
 
 @asynccontextmanager
-async def watch(lovekit: Lovekit, stream: Stream) -> AsyncIterator[AsyncIterator[frames.Frame]]:
+async def watch(
+    lovekit: Lovekit, stream: Stream
+) -> AsyncIterator[AsyncIterator[frames.Frame]]:
     """The frames of ``stream``, for as long as the block is open."""
     format = stream.format
     if stream.kind != StreamKind.DATA or format is None:
-        raise TypeError(f"{stream.key} is a {stream.kind} stream: only a data stream is watched as frames")
+        raise TypeError(
+            f"{stream.key} is a {stream.kind} stream: only a data stream is watched as frames"
+        )
     connection = await lovekit.awatch_stream(stream.id)
     if connection.transport != Transport.LIVEKIT:
-        raise RuntimeError(f"lovekit hands out a {connection.transport} connection, which this lovekit client does not speak")
+        raise RuntimeError(
+            f"lovekit hands out a {connection.transport} connection, which this lovekit client does not speak"
+        )
     if lovekit.livekit is None:
         raise RuntimeError("this lovekit client was built without the livekit alias")
     from lovekit.transports import livekit

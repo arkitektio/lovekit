@@ -1,25 +1,26 @@
-import sys
-import pytest
-from dokker import Deployment, testing
-from dokker.log_watcher import LogWatcher
 import os
 import socket
+import sys
 from collections.abc import Generator
-from lovekit.lovekit import Lovekit
-from rath.links.auth import ComposedAuthLink
+from dataclasses import dataclass
+
+import pytest
+from arkitekt_spec.declare.tested import record_tested
+from dokker import Deployment, testing
+from dokker.log_watcher import LogWatcher
+from fakts import Alias
 from rath.links.aiohttp import AIOHttpLink
+from rath.links.auth import ComposedAuthLink
+from rath.links.compose import compose
 from rath.links.graphql_ws import GraphQLWSLink
 from rath.links.timeout import TimeoutLink
-from rath.links.compose import compose
+
+from graphql import OperationType
+from lovekit.lovekit import Lovekit
 from lovekit.rath import (
     LovekitRath,
     SplitLink,
 )
-from graphql import OperationType
-from dataclasses import dataclass
-
-from arkitekt_spec.declare.tested import record_tested
-from fakts import Alias
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -71,7 +72,9 @@ def integration_ports() -> Generator[dict[str, int], None, None]:
     an unpublished port reads back as ``None`` and the test URLs would quietly
     become ``http://localhost:None`` instead of failing loudly.
     """
-    lovekit_port, rustfs_port, livekit_port, livekit_tcp, livekit_udp = _reserve_free_ports(5)
+    lovekit_port, rustfs_port, livekit_port, livekit_tcp, livekit_udp = (
+        _reserve_free_ports(5)
+    )
     env = {
         "LOVEKIT_HOST_PORT": str(lovekit_port),
         "RUSTFS_HOST_PORT": str(rustfs_port),
@@ -107,14 +110,18 @@ class DeployedLovekit:
 
 
 @pytest.fixture(scope="session")
-def deployed_app(integration_ports: dict[str, int]) -> Generator[DeployedLovekit, None, None]:
+def deployed_app(
+    integration_ports: dict[str, int],
+) -> Generator[DeployedLovekit, None, None]:
     """Deploy the Lovekit service via docker-compose and yield a connected client."""
     # testing(): a per-run `dokker-test-<hash>` project that is torn down on
     # exit, so concurrent or crashed runs (and sibling repos, which all name
     # their stack `integration`) never share containers.
     setup = testing(docker_compose_file)
     setup.add_health_check(
-        url=lambda spec: f"http://localhost:{spec.find_service('lovekit').get_port_for_internal(80).published}/graphql",
+        url=lambda spec: (
+            f"http://localhost:{spec.find_service('lovekit').get_port_for_internal(80).published}/graphql"
+        ),
         service="lovekit",
         timeout=5,
         # dokker sleeps `timeout` seconds between attempts: 20 x 5 s covers a
@@ -180,9 +187,17 @@ LIVEKIT_KEY, LIVEKIT_SECRET = "devkey", "devsecret_devsecret_devsecret_devsecret
 
 
 @pytest.fixture(scope="session")
-def livekit_alias(deployed_app: DeployedLovekit, integration_ports: dict[str, int]) -> Alias:
+def livekit_alias(
+    deployed_app: DeployedLovekit, integration_ports: dict[str, int]
+) -> Alias:
     """Where the deployment's LiveKit is, from the host: what fakts would resolve."""
-    return Alias(id="livekit", host="localhost", port=integration_ports["livekit"], ssl=False, kind="absolute")
+    return Alias(
+        id="livekit",
+        host="localhost",
+        port=integration_ports["livekit"],
+        ssl=False,
+        kind="absolute",
+    )
 
 
 @pytest.fixture

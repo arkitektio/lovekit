@@ -4,13 +4,13 @@ These carry no ``integration`` marker, so they run on every OS in the CI matrix,
 exercising pure-Python construction of the client and the generated schema models.
 """
 
-from lovekit.lovekit import Lovekit
 from lovekit.api.schema import (
     OffsetPaginationInput,
     StreamDeclarationInput,
     StreamFilter,
     StreamKind,
 )
+from lovekit.lovekit import Lovekit
 
 
 def test_lovekit_importable() -> None:

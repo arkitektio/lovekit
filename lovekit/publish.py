@@ -54,6 +54,7 @@ from lovekit.api.schema import (
     StreamDeclarationInput,
     StreamKind,
     Transport,
+    VideoFormatInput,
 )
 
 if TYPE_CHECKING:
@@ -70,7 +71,11 @@ MAX_BACKOFF = 30.0
 
 @dataclass(frozen=True)
 class VideoStream:
-    """A video stream to offer: a camera, a detector."""
+    """A video stream to offer: a camera, a detector.
+
+    ``axes`` (e.g. y, x, c), ``calibration`` and ``reference`` say where its pixels are, so a
+    viewer can place the frames beside stored data of the same reference.
+    """
 
     key: str
     """The agent's own name for it, the same on every start: the track's name."""
@@ -78,10 +83,26 @@ class VideoStream:
     description: str | None = None
     max_framerate: float = 15.0
     max_bitrate: int = 3_000_000
+    axes: Sequence[Axis] = ()
+    calibration: Sequence[Calibration] = ()
+    reference: str | None = None
+
+    def __post_init__(self) -> None:
+        if (self.calibration or self.reference) and not self.axes:
+            raise ValueError(f"{self.key}: a calibration or reference needs axes")
 
     @property
     def kind(self) -> StreamKind:
         return StreamKind.VIDEO
+
+    def video_format(self) -> VideoFormatInput | None:
+        if not self.axes:
+            return None
+        return VideoFormatInput(
+            axes=_axes(self.axes),
+            calibration=_calibration(self.calibration),
+            reference=self.reference,
+        )
 
 
 @dataclass(frozen=True)
@@ -163,16 +184,22 @@ class DataStream:
         return DataFormatInput(
             dtype=self.dtype,
             shape=self.shape,
-            axes=tuple(AxisInput(name=axis.name, type=axis.type) for axis in self.axes),
-            calibration=tuple(
-                CalibrationInput(
-                    axis=c.axis, unit=c.unit, scale=c.scale, offset=c.offset
-                )
-                for c in self.calibration
-            ),
+            axes=_axes(self.axes),
+            calibration=_calibration(self.calibration),
             unit=self.unit,
             reference=self.reference,
         )
+
+
+def _axes(axes: Sequence[Axis]) -> tuple[AxisInput, ...]:
+    return tuple(AxisInput(name=axis.name, type=axis.type) for axis in axes)
+
+
+def _calibration(calibration: Sequence[Calibration]) -> tuple[CalibrationInput, ...]:
+    return tuple(
+        CalibrationInput(axis=c.axis, unit=c.unit, scale=c.scale, offset=c.offset)
+        for c in calibration
+    )
 
 
 Declaration = VideoStream | AudioStream | DataStream
@@ -495,6 +522,9 @@ class LiveStreams:
                     description=declaration.description,
                     format=declaration.format()
                     if isinstance(declaration, DataStream)
+                    else None,
+                    video_format=declaration.video_format()
+                    if isinstance(declaration, VideoStream)
                     else None,
                 )
                 for declaration in self._declarations

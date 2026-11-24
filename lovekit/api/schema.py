@@ -151,6 +151,12 @@ class StreamDeclarationInput(BaseModel):
         default=None,
         description="What a frame holds: needed for a data stream, refused for any other",
     )
+    video_format: "VideoFormatInput | None" = Field(
+        validation_alias=AliasChoices("video_format", "videoFormat"),
+        serialization_alias="videoFormat",
+        default=None,
+        description="Where a frame's pixels are: optional for a video stream, refused for any other",
+    )
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
@@ -207,6 +213,27 @@ class StreamFilter(BaseModel):
     live: bool | None = Field(
         default=None,
         description="Only streams their agent publishes right now (true), or does not (false).",
+    )
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class VideoFormatInput(BaseModel):
+    """Where a video stream's pixels are: its axes, their calibration and the space they are in"""
+
+    axes: tuple[AxisInput, ...] = Field(
+        description="The axes of a frame in its order, e.g. y, x, c"
+    )
+    shape: tuple[int, ...] | None = Field(
+        default=None,
+        description="The size of a frame, one value per axis; none when it is known only from the first frame",
+    )
+    calibration: Annotated[
+        tuple[CalibrationInput, ...] | None, GraphQLDefault("[]")
+    ] = Field(default=None, description="The axes that measure something, and what")
+    "The axes that measure something, and what\nDefault: []"
+    reference: str | None = Field(
+        default=None,
+        description="The space the axes are in, named as mikro names a coordinate system's reference",
     )
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -292,6 +319,51 @@ class DataFormat(BaseModel):
         type = "DataFormat"
 
 
+class VideoFormatAxes(BaseModel):
+    """One axis of a data stream's frames"""
+
+    typename: Literal["Axis"] = Field(alias="__typename", default="Axis", exclude=True)
+    name: str
+    type: AxisType
+    model_config = ConfigDict(frozen=True)
+
+
+class VideoFormatCalibration(BaseModel):
+    """What a step along one axis measures: position = offset + scale * index, in unit"""
+
+    typename: Literal["Calibration"] = Field(
+        alias="__typename", default="Calibration", exclude=True
+    )
+    axis: str
+    unit: str
+    scale: float
+    offset: float
+    model_config = ConfigDict(frozen=True)
+
+
+class VideoFormat(BaseModel):
+    """Where a video stream's pixels are: its axes, their calibration and the space they are in"""
+
+    typename: Literal["VideoFormat"] = Field(
+        alias="__typename", default="VideoFormat", exclude=True
+    )
+    shape: tuple[int, ...] | None = Field(default=None)
+    "The size of a frame; none when known only from the first frame"
+    reference: str | None = Field(default=None)
+    "The space the axes are in, named as mikro names a coordinate system's reference"
+    axes: tuple[VideoFormatAxes, ...]
+    "The axes of a frame in its order"
+    calibration: tuple[VideoFormatCalibration, ...]
+    model_config = ConfigDict(frozen=True)
+
+    class Meta:
+        """Meta class for VideoFormat"""
+
+        document = "fragment VideoFormat on VideoFormat {\n  shape\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}"
+        name = "VideoFormat"
+        type = "VideoFormat"
+
+
 class StreamAgent(BaseModel):
     """An app instance that owns live streams: one per client, user and organization"""
 
@@ -320,13 +392,15 @@ class Stream(BaseModel):
     description: str | None = Field(default=None)
     format: DataFormat | None = Field(default=None)
     "What a frame holds; only a data stream has one."
+    video_format: VideoFormat | None = Field(default=None, alias="videoFormat")
+    "Where a frame's pixels are; only a video stream that declared it has one."
     agent: StreamAgent
     model_config = ConfigDict(frozen=True)
 
     class Meta:
         """Meta class for Stream"""
 
-        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment VideoFormat on VideoFormat {\n  shape\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  videoFormat {\n    ...VideoFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}"
         name = "Stream"
         type = "Stream"
 
@@ -370,7 +444,7 @@ class Agent(BaseModel):
     class Meta:
         """Meta class for Agent"""
 
-        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nfragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  streams {\n    ...Stream\n    __typename\n  }\n  __typename\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment VideoFormat on VideoFormat {\n  shape\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  videoFormat {\n    ...VideoFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nfragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  streams {\n    ...Stream\n    __typename\n  }\n  __typename\n}"
         name = "Agent"
         type = "Agent"
 
@@ -389,7 +463,7 @@ class DeclareStreamsMutation(BaseModel):
     class Meta:
         """Meta class for DeclareStreams"""
 
-        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nmutation DeclareStreams($input: DeclareStreamsInput!) {\n  declareStreams(input: $input) {\n    ...Stream\n    __typename\n  }\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment VideoFormat on VideoFormat {\n  shape\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  videoFormat {\n    ...VideoFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nmutation DeclareStreams($input: DeclareStreamsInput!) {\n  declareStreams(input: $input) {\n    ...Stream\n    __typename\n  }\n}"
 
 
 class PublisherConnectionMutation(BaseModel):
@@ -457,7 +531,7 @@ class GetAgentQuery(BaseModel):
     class Meta:
         """Meta class for GetAgent"""
 
-        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nfragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  streams {\n    ...Stream\n    __typename\n  }\n  __typename\n}\n\nquery GetAgent($id: ID!) {\n  agent(id: $id) {\n    ...Agent\n    __typename\n  }\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment VideoFormat on VideoFormat {\n  shape\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  videoFormat {\n    ...VideoFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nfragment Agent on Agent {\n  id\n  name\n  roomName\n  client {\n    clientId\n    __typename\n  }\n  user {\n    sub\n    __typename\n  }\n  streams {\n    ...Stream\n    __typename\n  }\n  __typename\n}\n\nquery GetAgent($id: ID!) {\n  agent(id: $id) {\n    ...Agent\n    __typename\n  }\n}"
 
 
 class SearchAgentsQueryOptions(BaseModel):
@@ -505,7 +579,7 @@ class GetStreamQuery(BaseModel):
     class Meta:
         """Meta class for GetStream"""
 
-        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery GetStream($id: ID!) {\n  stream(id: $id) {\n    ...Stream\n    __typename\n  }\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment VideoFormat on VideoFormat {\n  shape\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  videoFormat {\n    ...VideoFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery GetStream($id: ID!) {\n  stream(id: $id) {\n    ...Stream\n    __typename\n  }\n}"
 
 
 class IsStreamLiveQueryStream(BaseModel):
@@ -582,7 +656,7 @@ class ListStreamsQuery(BaseModel):
     class Meta:
         """Meta class for ListStreams"""
 
-        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {\n  streams(filters: $filter, pagination: $pagination) {\n    ...Stream\n    __typename\n  }\n}"
+        document = "fragment DataFormat on DataFormat {\n  dtype\n  shape\n  unit\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment VideoFormat on VideoFormat {\n  shape\n  reference\n  axes {\n    name\n    type\n    __typename\n  }\n  calibration {\n    axis\n    unit\n    scale\n    offset\n    __typename\n  }\n  __typename\n}\n\nfragment Stream on Stream {\n  id\n  key\n  title\n  kind\n  description\n  format {\n    ...DataFormat\n    __typename\n  }\n  videoFormat {\n    ...VideoFormat\n    __typename\n  }\n  agent {\n    id\n    roomName\n    __typename\n  }\n  __typename\n}\n\nquery ListStreams($filter: StreamFilter, $pagination: OffsetPaginationInput) {\n  streams(filters: $filter, pagination: $pagination) {\n    ...Stream\n    __typename\n  }\n}"
 
 
 class LovekitApi:
@@ -957,4 +1031,5 @@ class LovekitApi:
 
 
 DeclareStreamsInput.model_rebuild()
+StreamDeclarationInput.model_rebuild()
 StreamFilter.model_rebuild()

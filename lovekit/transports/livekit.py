@@ -25,6 +25,7 @@ mesh ACLs must let this node reach both ports.
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -33,11 +34,70 @@ import numpy as np
 from fakts import Alias
 from livekit import rtc
 
+logger = logging.getLogger(__name__)
+
 _FINAL = {
     rtc.DisconnectReason.DUPLICATE_IDENTITY: "replaced by a newer connection of this agent",
     rtc.DisconnectReason.PARTICIPANT_REMOVED: "removed from the room",
     rtc.DisconnectReason.CLIENT_INITIATED: "closed",
 }
+
+
+#: How often a publisher reports its own path to the media server (participant attributes).
+PATH_REPORT_SECONDS = 5.0
+
+#: The RPC method a viewer calls to time a round trip through the media server to this
+#: publisher and back. Answered at once with what was sent: the viewer times it and takes off
+#: its own leg, which leaves this publisher's.
+PING_METHOD = "lovekit.ping"
+
+
+def answer_ping(data: rtc.RpcInvocationData) -> str:
+    """A latency ping: answered at once, with its payload."""
+    return data.payload
+
+
+_CANDIDATE_KINDS = {0: "host", 1: "srflx", 2: "prflx", 3: "relay"}
+
+
+def publisher_path(stats: rtc.RtcStats) -> dict[str, str]:
+    """This publisher's path to the media server, as the participant attributes viewers read.
+
+    ``lovekit.rtt_ms``: the round trip of the selected candidate pair, in milliseconds;
+    ``lovekit.transport``: ``udp`` or ``tcp``; ``lovekit.candidate``: ``host``, ``srflx``,
+    ``prflx`` or ``relay``; ``lovekit.bridge``: ``1`` when the relay is the mesh's media
+    bridge (the TURN on 127.0.0.1). Empty while no pair is selected.
+    """
+    transports, pairs, locals_ = {}, {}, {}
+    for entry in stats.publisher_stats:
+        kind = entry.WhichOneof("stats")
+        if kind == "transport":
+            transports[entry.transport.rtc.id] = entry.transport.transport
+        elif kind == "candidate_pair":
+            pairs[entry.candidate_pair.rtc.id] = entry.candidate_pair.candidate_pair
+        elif kind == "local_candidate":
+            locals_[entry.local_candidate.rtc.id] = entry.local_candidate.candidate
+    pair = next(
+        (
+            pairs[t.selected_candidate_pair_id]
+            for t in transports.values()
+            if t.selected_candidate_pair_id in pairs
+        ),
+        None,
+    ) or next((p for p in pairs.values() if p.nominated), None)
+    if pair is None:
+        return {}
+    local = locals_.get(pair.local_candidate_id)
+    candidate = _CANDIDATE_KINDS.get(local.candidate_type, "") if local else ""
+    url = local.url if local else ""
+    return {
+        "lovekit.rtt_ms": str(round(pair.current_round_trip_time * 1000)),
+        "lovekit.transport": (local.protocol if local else "").lower(),
+        "lovekit.candidate": candidate,
+        "lovekit.bridge": "1"
+        if candidate == "relay" and ("127.0.0.1" in url or "localhost" in url)
+        else "0",
+    }
 
 
 @dataclass(frozen=True)
@@ -135,6 +195,23 @@ class Session:
         room.on("participant_connected", watchers)
         room.on("participant_disconnected", watchers)
         watchers()
+        # Viewers time pings through the media server to this publisher (`PING_METHOD`).
+        room.local_participant.register_rpc_method(PING_METHOD, answer_ping)
+        # Viewers see how this publisher reaches the media server (its round trip, UDP or
+        # TCP, direct or the mesh's media bridge): nothing else can tell them.
+        self._reporting = asyncio.ensure_future(self._report_path())
+
+    async def _report_path(self) -> None:
+        last: dict[str, str] = {}
+        while self._room.isconnected():
+            try:
+                path = publisher_path(await self._room.get_rtc_stats())
+                if path and path != last:
+                    await self._room.local_participant.set_attributes(path)
+                    last = path
+            except Exception:  # noqa: BLE001 - a report that fails is skipped; the stream goes on
+                logger.debug("Reporting the publisher's path failed", exc_info=True)
+            await asyncio.sleep(PATH_REPORT_SECONDS)
 
     async def wait_gone(self) -> Gone:
         """Until the room went away; why."""
@@ -166,6 +243,7 @@ class Session:
         return DataSink(await self._room.local_participant.publish_data_track(name=key))
 
     async def aclose(self) -> None:
+        self._reporting.cancel()
         if self._room.isconnected():
             await self._room.disconnect()
 

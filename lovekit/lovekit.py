@@ -1,9 +1,11 @@
 """The core client for the lovekit service"""
 
 from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any, Self
 
-from fakts import Alias
+from arkitekt_spec.declare.client import client
+from arkitekt_spec.declare.tested import tested_against
+from fakts import Alias, Require, TokenLoader
 from koil import unkoil, unkoil_gen
 from koil.composition import Composition
 from pydantic import PrivateAttr
@@ -21,6 +23,16 @@ if TYPE_CHECKING:
     from lovekit.publish import Declaration, LiveStreams
 
 
+TESTED = tested_against("lovekit")
+"""The lovekit server this release wants: the one its release job tested it against."""
+
+LOVEKIT = Require(
+    "live.arkitekt.lovekit", "Where rooms and their tokens are managed", version=TESTED
+)
+LIVEKIT = Require("io.livekit.livekit", "The media server rooms are hosted on")
+
+
+@client(image="jhnnsrs/lovekit:9")
 class Lovekit(Composition, LovekitApi):
     """Lovekit
 
@@ -38,6 +50,45 @@ class Lovekit(Composition, LovekitApi):
     """The media server rooms are hosted on, as resolved: a mesh alias carries
     the mesh node it is reached through."""
     _publisher: Any = PrivateAttr(default=None)
+
+    @classmethod
+    def from_fakts(
+        cls,
+        lovekit: Annotated[Alias, LOVEKIT],
+        livekit: Annotated[Alias, LIVEKIT],
+        tokens: TokenLoader,
+    ) -> Self:
+        """Built by a run. ``livekit`` is kept, not dialled: the LiveKit transport
+        reaches it with a credential lovekit hands out."""
+        from fakts.contrib.rath.auth import FaktsAuthLink
+        from rath.links.aiohttp import AIOHttpLink
+        from rath.links.graphql_ws import GraphQLWSLink
+        from rath.links.split import SplitLink
+
+        from graphql import OperationType
+        from lovekit.rath import LovekitLinkComposition
+
+        return cls(
+            livekit=livekit,
+            rath=LovekitRath(
+                link=LovekitLinkComposition(
+                    auth=FaktsAuthLink(token_loader=tokens),
+                    split=SplitLink(
+                        left=AIOHttpLink(
+                            endpoint_url=lovekit.to_http_path("graphql"),
+                            proxy=lovekit.proxy,
+                            ssl_context=lovekit.ssl_context(),
+                        ),
+                        right=GraphQLWSLink(
+                            ws_endpoint_url=lovekit.to_ws_path("graphql"),
+                            proxy=lovekit.proxy,
+                            ssl_context=lovekit.ssl_context(),
+                        ),
+                        split=lambda o: o.node.operation != OperationType.SUBSCRIPTION,
+                    ),
+                )
+            ),
+        )
 
     def publish(self, streams: "Iterable[Declaration]") -> "LiveStreams":
         """Offer exactly these streams as this app's agent, and keep them published.

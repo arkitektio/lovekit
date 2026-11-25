@@ -1,5 +1,5 @@
 from .api.schema import AxisType
-from .arkitekt import lovekit as lovekit_service
+from .lovekit import Lovekit
 from .publish import (
     AudioStream,
     Axis,
@@ -17,7 +17,10 @@ __all__ = [
     "Calibration",
     "DataStream",
     "LiveStreams",
+    "Lovekit",
     "VideoStream",
-    "lovekit_service",
     "to_rgba",
 ]
+
+# Marks every type lovekit sends by id, so an app using `Lovekit` finds them.
+from . import structures as _structures  # noqa: E402, F401

@@ -92,11 +92,10 @@ hook:
 from dataclasses import dataclass, field
 
 from arkitekt import App, run
-from lovekit import VideoStream, lovekit_service, to_rgba
+from lovekit import Lovekit, VideoStream, to_rgba
 from lovekit.api.schema import Stream
-from lovekit.lovekit import Lovekit
 
-app = App("camera", "0.1.0", services=[lovekit_service])
+app = App("camera", "0.1.0")
 
 
 @app.state

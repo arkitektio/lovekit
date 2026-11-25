@@ -3,6 +3,7 @@
 Imported by ``lovekit/__init__``: an app using ``Lovekit`` takes every one of them.
 """
 
+from arkitekt_spec.actions import AssignWidgetInput
 from arkitekt_spec.declare.structures.declare import structure
 from arkitekt_spec.declare.widgets import SearchWidget
 
@@ -10,7 +11,7 @@ from lovekit.api.schema import Agent, SearchAgentsQuery, SearchStreamsQuery, Str
 from lovekit.lovekit import Lovekit
 
 
-def _search(query: object) -> SearchWidget:
+def _search(query: object) -> AssignWidgetInput:
     """The widget that picks one of these out of the deployment."""
     return SearchWidget(query=query.Meta.document, ward="lovekit")  # type: ignore[attr-defined]
 
